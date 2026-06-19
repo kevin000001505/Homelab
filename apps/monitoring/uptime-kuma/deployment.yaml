@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: uptime-kuma
+  namespace: monitoring # Must match service and PVC namespace
+  labels:
+    app: uptime-kuma
+    tier: monitoring
+spec:
+  replicas: 1 # Set to 1 because with ReadWriteOnce PVC will crash if more than 1 pod tries to access it
+  revisionHistoryLimit: 1 # how many old ReplicaSets to keep (for rollback)
+  minReadySeconds: 1 # how long a new pod must be ready before old one is killed
+  selector:
+    matchLabels:
+      app: uptime-kuma # Must match spec.template.metadata.labels
+  strategy: # How pods are replaced during updates
+    type: Recreate # use this for apps with PVC
+    # type: RollingUpdate    # ← default, zero downtime
+    # rollingUpdate:
+    #   maxSurge: 1          # max extra pods during update
+    #   maxUnavailable: 0    # never kill old pod before new is ready
+  # Defines the actual pod that gets created
+  template:
+    metadata:
+      labels: # Must match spec.selector.matchLabels AND service selector
+        app: uptime-kuma
+        tier: monitoring
+    spec:
+      # nodeSelector: # Pin pod to a specific node by label
+      #   node-type: general      # your label for general worker
+      #   node-type: gpu          # your label for GPU worker (jellyfin, plex, immich)
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: uptime-kuma-data # Must match PVC name
+
+      containers:
+        - name: uptime-kuma
+          image: louislam/uptime-kuma:2.4.0
+          imagePullPolicy: IfNotPresent # Always, Never, IfNotPresent
+          ports: # Documents which ports the container uses. Does NOT actually expose or open ports.
+            - containerPort: 3001
+              protocol: TCP
+          env: # Environment variables for the container
+            - name: TZ
+              value: "America/New_York" # Set your timezone
+          volumeMounts:
+            - name: data # matches volume name above
+              mountPath: /app/data # Must match the path expected by the app (check docs or Dockerfile)
+              readOnly: false # default false
+          resources:
+            requests: # minimum guaranteed resources
+              memory: "128Mi"
+              cpu: "100m" # 100 millicores = 0.1 CPU core
+            limits: # maximum allowed
+              memory: "1Gi"
+              cpu: "500m" # 500 millicores = 0.5 CPU core
+          livenessProbe: # "Are you still ALIVE?"
+            httpGet:
+              path: / # hit this endpoint
+              port: 3001
+            initialDelaySeconds: 30 # wait 30s before first check (let app start)
+            periodSeconds: 10 # check every 10s
+            failureThreshold: 3 # restart after 3 consecutive failures
+          readinessProbe: # "Are you READY for traffic?"
+            httpGet:
+              path: /
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3 # mark not ready after 3 fails

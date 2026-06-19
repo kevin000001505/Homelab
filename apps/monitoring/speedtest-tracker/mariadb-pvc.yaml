@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: speedtest-db-data
+  namespace: monitoring
+  labels:
+    app: speedtest-db
+    tier: monitoring
+spec:
+  storageClassName: ""
+  volumeName: speedtest-db-pv
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 5Gi

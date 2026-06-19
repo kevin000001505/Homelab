@@ -1,0 +1,9 @@
+# core/namespaces/argocd-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    tier: core
+  annotations:
+    description: "ArgoCD namespace"

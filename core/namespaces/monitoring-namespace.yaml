@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    tier: monitoring
+  annotations:
+    description: "Monitoring, alerting, and observability"

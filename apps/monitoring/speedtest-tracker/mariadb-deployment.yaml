@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+  namespace: monitoring
+  labels:
+    app: mariadb
+    tier: monitoring
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  minReadySeconds: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mariadb
+        tier: monitoring
+    spec:
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: speedtest-db-data
+      containers:
+        - name: mariadb
+          image: mariadb:11
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MYSQL_DATABASE
+              value: "speedtest_tracker"
+            - name: MYSQL_USER
+              value: "speedtest_tracker"
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: speedtest-secret
+                  key: db-password
+            - name: MYSQL_RANDOM_ROOT_PASSWORD
+              value: "true"
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/mysql
+              readOnly: false
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            exec:
+              command:
+                - healthcheck.sh
+                - --connect
+                - --innodb_initialized
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+          readinessProbe:
+            exec:
+              command:
+                - healthcheck.sh
+                - --connect
+                - --innodb_initialized
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3

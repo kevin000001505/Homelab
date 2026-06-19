@@ -1,0 +1,182 @@
+enableRbac: true
+
+serviceAccount:
+  create: true
+  name: homepage
+
+controller:
+  strategy: RollingUpdate
+  rollingUpdate:
+    maxSurge: 25%
+    maxUnavailable: 25%
+
+config:
+  kubernetes:
+    mode: cluster
+  settings:
+    layout:
+      System:
+        icon: mdi-desktop-classic-#ffffff
+        tab: Services
+
+      Monitoring & Networking:
+        icon: mdi-home-analytics-#ffffff
+        tab: Services
+
+      Media Management:
+        icon: si-vlcmediaplayer-#ffffff
+        tab: Services
+
+      Tools:
+        icon: mdi-application-brackets-outline-#ffffff
+        tab: Services
+
+      Calendar:
+        icon: mdi-calendar-month-outline-#ffffff
+        tab: Services
+
+      Grafana Dashboard:
+        header: false
+        tab: Grafana
+
+  bookmarks:
+    - Developer:
+        - Github:
+            - icon: https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/github.svg
+              href: https://github.com/
+        - Cloudflare:
+            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/cloudflare.svg
+              href: https://www.cloudflare.com/
+
+    - Useful Links:
+        - FK Microsoft:
+            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/microsoft-365-admin-center.svg
+              href: https://massgrave.dev/windows_11_links
+
+  widgets:
+    - kubernetes:
+        cluster:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+          label: "k3s"
+        nodes:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+    - resources:
+        backend: resources
+        expanded: true
+        cpu: true
+        memory: true
+    - search:
+        provider: duckduckgo
+        target: _blank
+    - datetime:
+        text_size: xl
+        format:
+          dateStyle: short
+          timeStyle: short
+          hour12: true
+    - openmeteo:
+        label: Fairfax, VA
+        # latitude: REDACTED
+        # longitude:
+        #   REDACTED
+        #   #timezone: Europe/Kiev # optional
+        cache: 5
+        units: metric
+  services:
+    - Monitoring & Networking:
+        - Grafana:
+            icon: grafana.png
+            href: https://grafana.lan.shiba-toast.com
+            server: REDACTED
+            container: grafana
+        - Traefik:
+            icon: traefik.png
+            href: https://traefik.lan.shiba-toast.com
+            server: REDACTED
+            widget:
+              type: traefik
+              url: http://traefik.kube-system.svc.cluster.local:8080
+              fields: ["routers", "services", "middleware"]
+        - Uptime Kuma:
+            icon: uptime-kuma.png
+            href: https://uptime.lan.shiba-toast.com
+            server: REDACTED
+            widget:
+              type: uptimekuma
+              url: http://uptime-kuma.monitoring.svc.cluster.local
+              slug: homelab
+        - Adguard Home:
+            icon: adguard-home.png
+            href: http://192.168.1.247
+            server: REDACTED
+            # widget:
+            #   type: adguard
+            #   url: http://192.168.1.247
+            #   username: "{{ HOMEPAGE_VAR_ADGUARD_USERNAME }}"
+            #   password: "{{ HOMEPAGE_VAR_ADGUARD_PASSWORD }}"
+        - Speedtest Tracker:
+            icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/speedtest-tracker.svg
+            href: https://speedtest.lan.shiba-toast.com
+            server: REDACTED
+            widget:
+              type: speedtest
+              url: http://speedtest-tracker.monitoring.svc.cluster.local
+              version: 1 # optional, default is 1
+              key: "{{ HOMEPAGE_VAR_SPEEDTEST_API_KEY }}"
+              bitratePrecision: 0 # optional, default is 0
+    - Tools:
+        - Bentopdf:
+            icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/bentopdf.svg
+            href: https://bentopdf.lan.shiba-toast.com
+            server: REDACTED
+        - OpenWebUI:
+            icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/open-webui.svg
+            href: https://openwebui.lan.shiba-toast.com
+            server: REDACTED
+        - Subsyncarr:
+            icon: 🧬
+            href: https://subsyncarr.lan.shiba-toast.com
+            server: REDACTED
+
+ingress:
+  main:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    hosts:
+      - host: homepage.lan.shiba-toast.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: homepage-tls
+        hosts:
+          - homepage.lan.shiba-toast.com
+
+env:
+  - name: HOMEPAGE_ALLOWED_HOSTS
+    value: "homepage.lan.shiba-toast.com"
+  - name: HOMEPAGE_VAR_SPEEDTEST_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: homepage-secret
+        key: speed-test-api
+  - name: HOMEPAGE_VAR_ADGUARD_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: homepage-secret
+        key: adguard-username
+  - name: HOMEPAGE_VAR_ADGUARD_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: homepage-secret
+        key: adguard-password

@@ -1,0 +1,9 @@
+*.bak
+*.tmp
+.DS_Store
+secret.yaml
+*.secret.yaml
+controlplane.yaml
+worker.yaml
+talosconfig
+secrets/

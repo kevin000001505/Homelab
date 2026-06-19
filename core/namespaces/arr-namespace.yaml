@@ -1,0 +1,9 @@
+# core/namespaces/arr-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: arr-stacks
+  labels:
+    tier: arr-stacks
+  annotations:
+    description: "Media downloading and management"

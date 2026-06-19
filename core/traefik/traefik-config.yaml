@@ -1,0 +1,39 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    experimental:
+      plugins:
+        geoblock:
+          moduleName: github.com/PascalMinder/geoblock
+          version: v0.2.8
+        fail2ban:
+          moduleName: github.com/tomMoulard/fail2ban
+          version: v0.9.0
+    additionalArguments:
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+      - "--entrypoints.websecure.http.middlewares=kube-system-geoblock@kubernetescrd,kube-system-fail2ban@kubernetescrd"
+      - "--entrypoints.web.http.middlewares=kube-system-geoblock@kubernetescrd,kube-system-fail2ban@kubernetescrd"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.entryPoint=metrics"
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+    ports:
+      traefik:
+        expose:
+          default: true
+      metrics:                  # add this block
+        port: 8082
+        expose:
+          default: true
+        exposedPort: 8082
+        protocol: TCP
+    metrics:
+      prometheus:
+        entryPoint: metrics
+        addEntryPointsLabels: true
+        addServiceLabels: true

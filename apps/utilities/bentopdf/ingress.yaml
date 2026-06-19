@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bentopdf
+  namespace: utilities
+  labels:
+    app: bentopdf
+    tier: utilities
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure # web for HTTP, websecure for HTTPS. Can use both by separating with comma: web,websecure
+    # traefik.ingress.kubernetes.io/router.middlewares: kube-system-geoblock@kubernetescrd # Example of using a middleware to block certain countries (redumdant for internal apps)
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  rules:
+    - host: bentopdf.lan.shiba-toast.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bentopdf
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - bentopdf.lan.shiba-toast.com
+      secretName: bentopdf-tls

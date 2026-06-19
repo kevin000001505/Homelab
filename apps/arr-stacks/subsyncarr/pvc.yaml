@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: subsyncarr-data
+  namespace: arr-stacks
+  labels:
+    app: subsyncarr
+    tier: arr-stacks
+spec:
+  storageClassName: ""
+  volumeName: subsyncarr-pv
+  resources:
+    requests:
+      storage: 2Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce

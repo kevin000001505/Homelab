@@ -1,0 +1,10 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: crowdsec
+  namespace: kube-system
+spec:
+  plugin:
+    crowdsec-bouncer-traefik-plugin:
+      CrowdsecLapiKey: "t/XBGLDZ1Tem9kFsvVXJlR1LgcO+mIM8ZvF1OWaW6D8"
+      Enabled: "True"

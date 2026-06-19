@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uptime-kuma-data # Use descriptive names like app-purpose (uptime-kuma-config, sonarr-data)
+  namespace: monitoring # PVC and Pod must be in the same namespace or the pod can't find it
+  labels:
+    app: uptime-kuma
+    tier: monitoring
+spec:
+  storageClassName: "" # Use the same storage class as your cluster (e.g., local-path for k3s, longhorn)
+  volumeName: uptime-kuma-pv # Bind to a specific PV by name (optional, but ensures you get the right PV)
+  resources:
+    requests:
+      storage: 5Gi # Adjust size based on your needs (e.g., 500Mi, 1Gi, 5Gi, 1Ti)
+  volumeMode: Filesystem # Use Filesystem for most cases, Block is for raw block devices
+  # App manages its own I/O at the block level (Cassandra, Ceph, some Postgres configs).
+  accessModes:
+    - ReadWriteOnce # One node can read+write (most common for single-app)
+    # ReadOnlyMany Many nodes can read, none can write
+    # ReadWriteMany Many nodes can read+write (needs NFS or Longhorn)
+    # ReadWriteOncePod Only ONE pod can read+write (strictest, k8s 1.22+)

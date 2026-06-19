@@ -1,0 +1,16 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: fail2ban
+  namespace: kube-system
+spec:
+  plugin:
+    fail2ban:
+      allowlist:
+        ip: "127.0.0.1,10.0.0.0/8,192.168.0.0/16"
+      rules:
+        bantime: 3h
+        enabled: "true"
+        findtime: 10m
+        maxretry: "4"
+        statuscode: 400,401,403-499

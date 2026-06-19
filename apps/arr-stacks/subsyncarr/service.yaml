@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: subsyncarr
+  namespace: arr-stacks
+  labels:
+    app: subsyncarr
+    tier: arr-stacks
+spec:
+  type: ClusterIP # NodePort, LoadBalancer(MetalLB assigns a real IP), ExternalName
+  selector: # Key-Value map. ALL keys must match the pod's labels
+    app: subsyncarr
+    tier: arr-stacks
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP

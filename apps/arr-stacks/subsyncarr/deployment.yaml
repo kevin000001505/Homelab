@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: subsyncarr
+  namespace: arr-stacks
+  labels:
+    name: subsyncarr
+    tier: arr-stacks
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  minReadySeconds: 5
+  selector:
+    matchLabels:
+      app: subsyncarr
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: subsyncarr
+        tier: arr-stacks
+    spec:
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: subsyncarr-data
+
+        - name: media
+          persistentVolumeClaim:
+            claimName: media-nfs
+
+      containers:
+        - name: subsyncarr
+          image: mrorbitman/subsyncarr:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: media
+              mountPath: /movies
+              subPath: data/media/movies
+            - name: media
+              mountPath: /tv
+              subPath: data/media/tv
+
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          env:
+            - name: ROOT
+              valueFrom:
+                secretKeyRef:
+                  name: subsyncarr-secret
+                  key: ROOT
+            - name: MEDIA
+              valueFrom:
+                secretKeyRef:
+                  name: subsyncarr-secret
+                  key: MEDIA
+            - name: PYTHONSCRIPTS
+              valueFrom:
+                secretKeyRef:
+                  name: subsyncarr-secret
+                  key: PYTHONSCRIPTS
+            - name: PUID
+              valueFrom:
+                secretKeyRef:
+                  name: subsyncarr-secret
+                  key: PUID
+            - name: PGID
+              valueFrom:
+                secretKeyRef:
+                  name: subsyncarr-secret
+                  key: PGID
+            - name: TZ
+              valueFrom:
+                secretKeyRef:
+                  name: subsyncarr-secret
+                  key: TZ
+            - name: CRON_SCHEDULE
+              valueFrom:
+                secretKeyRef:
+                  name: subsyncarr-secret
+                  key: CRON_SCHEDULE
+            - name: SCAN_PATHS
+              valueFrom:
+                secretKeyRef:
+                  name: subsyncarr-secret
+                  key: SCAN_PATHS
+            - name: EXCLUDE_PATHS
+              valueFrom:
+                secretKeyRef:
+                  name: subsyncarr-secret
+                  key: EXCLUDE_PATHS
+            - name: MAX_CONCURRENT_SYNC_TASKS
+              valueFrom:
+                secretKeyRef:
+                  name: subsyncarr-secret
+                  key: MAX_CONCURRENT_SYNC_TASKS
+            - name: INCLUDE_ENGINES
+              valueFrom:
+                secretKeyRef:
+                  name: subsyncarr-secret
+                  key: INCLUDE_ENGINES

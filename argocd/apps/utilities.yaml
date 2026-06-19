@@ -1,0 +1,21 @@
+# argocd/apps/utilities.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: utilities
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kevin000001505/Homelab.git
+    targetRevision: HEAD
+    path: apps/utilities
+    directory:
+      recurse: true
+  destination:
+    server: https://192.168.1.15:6443
+    namespace: utilities
+  syncPolicy: {}
+    # automated:
+    #   prune: true
+    #   selfHeal: true

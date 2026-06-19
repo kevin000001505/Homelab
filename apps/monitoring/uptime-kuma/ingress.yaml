@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: uptime-kuma
+  namespace: monitoring
+  labels:
+    app: uptime-kuma
+    tier: monitoring
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure # web for HTTP, websecure for HTTPS. Can use both by separating with comma: web,websecure
+    # traefik.ingress.kubernetes.io/router.middlewares: kube-system-geoblock@kubernetescrd # Example of using a middleware to block certain countries (redumdant for internal apps)
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: uptime.lan.shiba-toast.com
+      http:
+        paths:
+          - path: /
+            # Exact: matches the URL path exactly and with case sensitivity.
+            # Prefix: matches based on a URL path prefix split by '/'.
+            # Implementation-specific: the interpretation of the path is up to the IngressClass. This is the default if not specified.
+            pathType: Prefix # Matches path and everything under it
+            backend:
+              service:
+                name: uptime-kuma # Must match service name
+                port:
+                  number: 80 # Must match service port NOT targetPort
+  tls:
+    - hosts:
+        - uptime.lan.shiba-toast.com
+      secretName: uptime-kuma-tls

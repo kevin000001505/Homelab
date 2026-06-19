@@ -1,0 +1,50 @@
+deploymentMode: SingleBinary
+
+singleBinary:
+  replicas: 1
+  nodeSelector:
+    node-type: general
+
+loki:
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+  auth_enabled: false
+
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+monitoring:
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+  lokiCanary:
+    enabled: false
+
+test:
+  enabled: false
+
+chunksCache:
+  enabled: false
+  # allocatedMemory: 512 # MB given to memcached -m flag (default is 8192)
+  # resources:
+  #   requests:
+  #     cpu: 100m
+  #     memory: 600Mi
+  #   limits:
+  #     memory: 600Mi

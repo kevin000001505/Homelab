@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speedtest-tracker
+  namespace: monitoring
+  labels:
+    app: speedtest-tracker
+    tier: monitoring
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  minReadySeconds: 1
+  selector:
+    matchLabels:
+      app: speedtest-tracker
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: speedtest-tracker
+        tier: monitoring
+    spec:
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: speedtest-tracker-data
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z mariadb 3306; do
+                echo "Waiting for MariaDB..."
+                sleep 2
+              done
+              echo "MariaDB is ready!"
+      containers:
+        - name: speedtest-tracker
+          image: lscr.io/linuxserver/speedtest-tracker:v1.14.4-ls158
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: APP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: speedtest-secret
+                  key: app-key
+            - name: APP_URL
+              valueFrom:
+                secretKeyRef:
+                  name: speedtest-secret
+                  key: app-url
+            - name: DB_CONNECTION
+              value: "mariadb"
+            - name: DB_HOST
+              value: "mariadb" # ← service name replaces docker DB_HOST=db
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_DATABASE
+              value: "speedtest_tracker"
+            - name: DB_USERNAME
+              value: "speedtest_tracker"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: speedtest-secret
+                  key: db-password
+            - name: SPEEDTEST_SCHEDULE
+              valueFrom:
+                secretKeyRef:
+                  name: speedtest-secret
+                  key: speedtest-schedule
+          volumeMounts:
+            - name: data
+              mountPath: /config
+              readOnly: false
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            failureThreshold: 3
+            timeoutSeconds: 10
