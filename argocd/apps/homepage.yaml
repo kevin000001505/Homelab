@@ -1,0 +1,24 @@
+# argocd/apps/homepage.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: homepage
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://jameswynn.github.io/helm-charts
+      chart: homepage
+      targetRevision: "2.1.0"
+      helm:
+        valueFiles:
+          - $values/apps/monitoring/homepage/values.yaml
+    - repoURL: https://github.com/kevin000001505/Homelab.git
+      targetRevision: HEAD
+      ref: values # this becomes the $values alias
+  destination:
+    server: https://192.168.1.15:6443
+    namespace: monitoring
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
