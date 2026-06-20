@@ -48,6 +48,16 @@ config:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/cloudflare.svg
               href: https://www.cloudflare.com/
 
+    - Social:
+        - Reddit:
+            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/reddit.svg
+              href: https://www.reddit.com/
+
+    - Entertainment:
+        - Youtube:
+            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/youtube.svg
+              href: https://www.youtube.com/
+
     - Useful Links:
         - FK Microsoft:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/microsoft-365-admin-center.svg
@@ -72,8 +82,9 @@ config:
         cpu: true
         memory: true
     - search:
-        provider: duckduckgo
+        provider: google
         target: _blank
+        showSearchSuggestions: true
     - datetime:
         text_size: xl
         format:
@@ -88,6 +99,12 @@ config:
         #   #timezone: Europe/Kiev # optional
         cache: 5
         units: metric
+    - type: proxmoxbackupserver
+      url: http://192.168.1.241:8007
+      username: "{{HOMEPAGE_VAR_PBS_USERNAME}}"
+      password: "{{HOMEPAGE_VAR_PBS_PASSWORD}}"
+      datastore: backup
+
   services:
     - Monitoring & Networking:
         - Grafana:
@@ -162,6 +179,25 @@ ingress:
         hosts:
           - homepage.lan.shiba-toast.com
 
+extraVolumeMounts:
+  - name: custom-images
+    mountPath: /app/custom
+
+extraVolumes:
+  - name: custom-images
+    emptyDir: {}
+
+initContainers:
+  download-background:
+    image: curlimages/curl:latest
+    command:
+      - /bin/sh
+      - -c
+      - curl -o /app/custom/background.jpg https://raw.githubusercontent.com/kevin000001505/Homelab/main/docs/images/background.jpg
+    volumeMounts:
+      - name: custom-images
+        mountPath: /app/custom
+
 env:
   - name: HOMEPAGE_ALLOWED_HOSTS
     value: "homepage.lan.shiba-toast.com"
@@ -180,3 +216,13 @@ env:
       secretKeyRef:
         name: homepage-secret
         key: adguard-password
+  - name: HOMEPAGE_VAR_PBS_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: homepage-secret
+        key: pbs-username
+  - name: HOMEPAGE_VAR_PBS_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: homepage-secret
+        key: pbs-password
