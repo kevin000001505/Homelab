@@ -95,29 +95,21 @@ config:
           hour12: true
     - openmeteo:
         label: Fairfax, VA
-        # latitude: REDACTED
+        # latitude:
         # longitude:
-        #   REDACTED
         #   #timezone: Europe/Kiev # optional
         cache: 5
         units: metric
-    - type: proxmoxbackupserver
-      url: http://192.168.1.241:8007
-      username: "{{HOMEPAGE_VAR_PBS_USERNAME}}"
-      password: "{{HOMEPAGE_VAR_PBS_PASSWORD}}"
-      datastore: backup
 
   services:
     - Monitoring & Networking:
         - Grafana:
             icon: grafana.png
             href: https://grafana.lan.shiba-toast.com
-            server: REDACTED
             container: grafana
         - Traefik:
             icon: traefik.png
             href: https://traefik.lan.shiba-toast.com
-            server: REDACTED
             widget:
               type: traefik
               url: http://traefik.kube-system.svc.cluster.local:8080
@@ -125,43 +117,46 @@ config:
         - Uptime Kuma:
             icon: uptime-kuma.png
             href: https://uptime.lan.shiba-toast.com
-            server: REDACTED
             widget:
               type: uptimekuma
               url: http://uptime-kuma.monitoring.svc.cluster.local
               slug: homelab
         - Adguard Home:
             icon: adguard-home.png
-            href: http://192.168.1.247
-            server: REDACTED
+            href: "{{ HOMEPAGE_VAR_ADGUARD_IP }}"
             # widget:
             #   type: adguard
-            #   url: http://192.168.1.247
+            #   url: "{{ HOMEPAGE_VAR_ADGUARD_IP }}"
             #   username: "{{ HOMEPAGE_VAR_ADGUARD_USERNAME }}"
             #   password: "{{ HOMEPAGE_VAR_ADGUARD_PASSWORD }}"
         - Speedtest Tracker:
             icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/speedtest-tracker.svg
             href: https://speedtest.lan.shiba-toast.com
-            server: REDACTED
             widget:
               type: speedtest
               url: http://speedtest-tracker.monitoring.svc.cluster.local
               version: 1 # optional, default is 1
               key: "{{ HOMEPAGE_VAR_SPEEDTEST_API_KEY }}"
               bitratePrecision: 0 # optional, default is 0
+        - Proxmox Backup Server:
+            icon: proxmox.png
+            href: "{{HOMEPAGE_VAR_PBS_IP}}"
+            widget:
+              type: proxmoxbackupserver
+              url: "{{HOMEPAGE_VAR_PBS_IP}}"
+              username: "{{HOMEPAGE_VAR_PBS_USERNAME}}"
+              password: "{{HOMEPAGE_VAR_PBS_PASSWORD}}"
+              datastore: backup
     - Tools:
         - Bentopdf:
             icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/bentopdf.svg
             href: https://bentopdf.lan.shiba-toast.com
-            server: REDACTED
         - OpenWebUI:
             icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/open-webui.svg
             href: https://openwebui.lan.shiba-toast.com
-            server: REDACTED
         - Subsyncarr:
             icon: 🧬
             href: https://subsyncarr.lan.shiba-toast.com
-            server: REDACTED
 
 ingress:
   main:
@@ -189,6 +184,11 @@ env:
       secretKeyRef:
         name: homepage-secret
         key: speed-test-api
+  - name: HOMEPAGE_VAR_ADGUARD_IP
+    valueFrom:
+      secretKeyRef:
+        name: homepage-secret
+        key: adguard-ip
   - name: HOMEPAGE_VAR_ADGUARD_USERNAME
     valueFrom:
       secretKeyRef:
@@ -209,3 +209,8 @@ env:
       secretKeyRef:
         name: homepage-secret
         key: pbs-password
+  - name: HOMEPAGE_VAR_PBS_IP
+    valueFrom:
+      secretKeyRef:
+        name: homepage-secret
+        key: pbs-ip
