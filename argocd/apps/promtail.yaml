@@ -1,18 +1,18 @@
-# argocd/apps/homepage.yaml
+# argocd/apps/promtail.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: homepage
+  name: promtail
   namespace: argocd
 spec:
   project: homelab
   sources:
-    - repoURL: https://jameswynn.github.io/helm-charts
-      chart: homepage
-      targetRevision: "2.1.0"
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: promtail
+      targetRevision: "6.17.1"
       helm:
         valueFiles:
-          - $values/apps/monitoring/homepage/values.yaml
+          - $values/apps/monitoring/promtail/values.yaml
     - repoURL: https://github.com/kevin000001505/Homelab.git
       targetRevision: HEAD
       ref: values # this becomes the $values alias

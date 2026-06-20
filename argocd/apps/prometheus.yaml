@@ -1,18 +1,18 @@
-# argocd/apps/homepage.yaml
+# argocd/apps/prometheus.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: homepage
+  name: prometheus
   namespace: argocd
 spec:
   project: homelab
   sources:
-    - repoURL: https://jameswynn.github.io/helm-charts
-      chart: homepage
-      targetRevision: "2.1.0"
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: "86.3.2"
       helm:
         valueFiles:
-          - $values/apps/monitoring/homepage/values.yaml
+          - $values/core/prometheus/values.yaml
     - repoURL: https://github.com/kevin000001505/Homelab.git
       targetRevision: HEAD
       ref: values # this becomes the $values alias
