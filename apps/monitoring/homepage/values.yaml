@@ -14,6 +14,8 @@ config:
   kubernetes:
     mode: cluster
   settings:
+    background:
+      image: https://raw.githubusercontent.com/kevin000001505/Homelab/main/docs/images/background.jpg
     layout:
       System:
         icon: mdi-desktop-classic-#ffffff
@@ -178,25 +180,6 @@ ingress:
       - secretName: homepage-tls
         hosts:
           - homepage.lan.shiba-toast.com
-
-extraVolumeMounts:
-  - name: custom-images
-    mountPath: /app/custom
-
-extraVolumes:
-  - name: custom-images
-    emptyDir: {}
-
-initContainers:
-  download-background:
-    image: curlimages/curl:latest
-    command:
-      - /bin/sh
-      - -c
-      - curl -o /app/custom/background.jpg https://raw.githubusercontent.com/kevin000001505/Homelab/main/docs/images/background.jpg
-    volumeMounts:
-      - name: custom-images
-        mountPath: /app/custom
 
 env:
   - name: HOMEPAGE_ALLOWED_HOSTS
