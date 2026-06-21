@@ -58,36 +58,45 @@ config:
         - Github:
             - icon: https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/github.svg
               href: https://github.com/
+              abbr: ""
         - Cloudflare:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/cloudflare.svg
               href: https://www.cloudflare.com/
+              abbr: ""
 
     - Social:
         - Reddit:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/reddit.svg
               href: https://www.reddit.com/
+              abbr: ""
         - Facebook:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/facebook.svg
               href: https://www.facebook.com/
+              abbr: ""
         - Instagram:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/instagram.svg
               href: https://www.instagram.com/
+              abbr: ""
 
     - Entertainment:
         - Youtube:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/youtube.svg
               href: https://www.youtube.com/
+              abbr: ""
         - Amazon:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/amazon.svg
               href: https://www.amazon.com/
+              abbr: ""
 
     - Useful Links:
         - Proxmox VE Scripts:
             - icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/proxmox-helper-scripts.svg
               href: https://community-scripts.org/
+              abbr: ""
         - FK Microsoft:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/microsoft-365-admin-center.svg
               href: https://massgrave.dev/windows_11_links
+              abbr: ""
 
   widgets:
     - kubernetes:
@@ -173,9 +182,9 @@ config:
               type: truenas
               url: "{{ HOMEPAGE_VAR_TRUENAS_IP }}"
               version: 2 # optional, defaults to 1
-              # username: user # not required if using api key
-              # password: pass # not required if using api key
-              key: "{{ HOMEPAGE_VAR_TRUENAS_API_KEY }}" # not required if using username / password
+              username: "{{ HOMEPAGE_VAR_TRUENAS_USERNAME }}" # not required if using api key
+              password: "{{ HOMEPAGE_VAR_TRUENAS_PASSWORD }}" # not required if using api key
+              # key: "{{ HOMEPAGE_VAR_TRUENAS_API_KEY }}" # not required if using username / password
               enablePools: true # optional, defaults to false
               nasType: scale # defaults to scale, must be set to 'core' if using enablePools with TrueNAS Core
         - Proxmox Backup Server:
@@ -264,3 +273,13 @@ env:
       secretKeyRef:
         name: homepage-secret
         key: truenas-api-key
+  - name: HOMEPAGE_VAR_TRUENAS_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: homepage-secret
+        key: truenas-username
+  - name: HOMEPAGE_VAR_TRUENAS_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: homepage-secret
+        key: truenas-password
