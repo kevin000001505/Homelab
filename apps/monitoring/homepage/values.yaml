@@ -102,7 +102,7 @@ config:
         - Proxmox VE Scripts:
             - icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/proxmox-helper-scripts.svg
               href: https://community-scripts.org/
-              abbr: ""
+              description: ""
         - FK Microsoft:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/microsoft-365-admin-center.svg
               href: https://massgrave.dev/windows_11_links
@@ -143,22 +143,6 @@ config:
         timezone: America/New_York
         cache: 5
         units: metric
-    - calendar:
-        firstDayInWeek: monday
-        view: monthly
-        showTime: true
-        timezone: America/New_York
-        # integrations:
-        #   - type: sonarr
-        #     service_group: media
-        #     service_name: sonarr
-        #     color: teal
-        #     baseUrl: https://sonarr.example.tld
-        #   - type: radarr
-        #     service_group: media
-        #     service_name: radarr
-        #     color: orange
-        #     baseUrl: https://radarr.example.tld
 
   services:
     - Monitoring:
@@ -231,6 +215,31 @@ config:
         - Subsyncarr:
             icon: 🧬
             href: https://subsyncarr.lan.shiba-toast.com
+    - Calendar:
+        - Calendar:
+            icon: mdi-calendar-month-outline-#ffffff
+            widget:
+              type: calendar
+              firstDayInWeek: monday
+              view: monthly
+              maxEvents: 10
+              showTime: true
+              timezone: America/New_York
+              # integrations:
+              #   - type: sonarr
+              #     service_group: Media Management
+              #     service_name: Sonarr
+              #     color: teal
+              #     baseUrl: https://sonarr.lan.shiba-toast.com
+              #   - type: radarr
+              #     service_group: Media Management
+              #     service_name: Radarr
+              #     color: orange
+              #     baseUrl: https://radarr.lan.shiba-toast.com
+              #   - type: ical
+              #     url: https://domain.url/calendar.ics
+              #     name: My Events
+              #     color: zinc
 
 ingress:
   main:
