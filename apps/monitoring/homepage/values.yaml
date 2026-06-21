@@ -62,35 +62,35 @@ config:
         - Github:
             - icon: https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/github.svg
               href: https://github.com/
-              abbr: ""
+              description: ""
         - Cloudflare:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/cloudflare.svg
               href: https://www.cloudflare.com/
-              abbr: ""
+              description: ""
 
     - Social:
         - Reddit:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/reddit.svg
               href: https://www.reddit.com/
-              abbr: ""
+              description: ""
         - Facebook:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/facebook.svg
               href: https://www.facebook.com/
-              abbr: ""
+              description: ""
         - Instagram:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/instagram.svg
               href: https://www.instagram.com/
-              abbr: ""
+              description: ""
 
     - Entertainment:
         - Youtube:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/youtube.svg
               href: https://www.youtube.com/
-              abbr: ""
+              description: ""
         - Amazon:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/amazon.svg
               href: https://www.amazon.com/
-              abbr: ""
+              description: ""
 
     - Useful Links:
         - Proxmox VE Scripts:
@@ -100,7 +100,7 @@ config:
         - FK Microsoft:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/microsoft-365-admin-center.svg
               href: https://massgrave.dev/windows_11_links
-              abbr: ""
+              description: ""
 
   widgets:
     - kubernetes:
@@ -210,6 +210,26 @@ config:
         - Subsyncarr:
             icon: 🧬
             href: https://subsyncarr.lan.shiba-toast.com
+    - Calendar:
+        widget:
+          type: calendar
+          firstDayInWeek: monday
+          view: monthly
+          showTime: true
+          timezone: America/New_York
+          # integrations: # optional
+          #   - type: sonarr # active widget type that is currently enabled on homepage - possible values: radarr, sonarr, lidarr, readarr, ical
+          #     service_group: media # group name where widget exists
+          #     service_name: sonarr # service name for that widget
+          #     color: teal # optional - defaults to pre-defined color for the service (teal for sonarr)
+          #     baseUrl: https://sonarr.example.tld # optional - adds links to sonarr/radarr pages
+          #     params: # optional - additional params for the service
+          #   - type: radarr # active widget type that is currently enabled on homepage - possible values: radarr, sonarr, lidarr, readarr, ical
+          #     service_group: media # group name where widget exists
+          #     service_name: radarr # service name for that widget
+          #     color: orange # optional - defaults to pre-defined color for the service (teal for sonarr)
+          #     baseUrl: https://radarr.example.tld # optional - adds links to sonarr/radarr pages
+          #     params: # optional - additional params for the service
 
 ingress:
   main:
