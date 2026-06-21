@@ -143,6 +143,22 @@ config:
         timezone: America/New_York
         cache: 5
         units: metric
+    - calendar:
+        firstDayInWeek: monday
+        view: monthly
+        showTime: true
+        timezone: America/New_York
+        # integrations:
+        #   - type: sonarr
+        #     service_group: media
+        #     service_name: sonarr
+        #     color: teal
+        #     baseUrl: https://sonarr.example.tld
+        #   - type: radarr
+        #     service_group: media
+        #     service_name: radarr
+        #     color: orange
+        #     baseUrl: https://radarr.example.tld
 
   services:
     - Monitoring:
@@ -178,9 +194,9 @@ config:
             widget:
               type: speedtest
               url: http://speedtest-tracker.monitoring.svc.cluster.local
-              version: 1 # optional, default is 1
+              version: 1
               key: "{{ HOMEPAGE_VAR_SPEEDTEST_API_KEY }}"
-              bitratePrecision: 0 # optional, default is 0
+              bitratePrecision: 0
 
     - Storage:
         - TrueNAS:
@@ -189,12 +205,12 @@ config:
             # widget:
             #   type: truenas
             #   url: "{{ HOMEPAGE_VAR_TRUENAS_IP }}"
-            #   version: 2 # optional, defaults to 1
-            #   username: "{{ HOMEPAGE_VAR_TRUENAS_USERNAME }}" # not required if using api key
-            #   password: "{{ HOMEPAGE_VAR_TRUENAS_PASSWORD }}" # not required if using api key
-            #   # key: "{{ HOMEPAGE_VAR_TRUENAS_API_KEY }}" # not required if using username / password
-            #   enablePools: true # optional, defaults to false
-            #   nasType: scale # defaults to scale, must be set to 'core' if using enablePools with TrueNAS Core
+            #   version: 2
+            #   username: "{{ HOMEPAGE_VAR_TRUENAS_USERNAME }}"
+            #   password: "{{ HOMEPAGE_VAR_TRUENAS_PASSWORD }}"
+            #   # key: "{{ HOMEPAGE_VAR_TRUENAS_API_KEY }}"
+            #   enablePools: true
+            #   nasType: scale
         - Proxmox Backup Server:
             icon: proxmox.png
             href: "{{HOMEPAGE_VAR_PBS_IP}}"
@@ -204,6 +220,7 @@ config:
             #   username: "{{HOMEPAGE_VAR_PBS_USERNAME}}"
             #   password: "{{HOMEPAGE_VAR_PBS_PASSWORD}}"
             #   # datastore: backup
+
     - Tools:
         - Bentopdf:
             icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/bentopdf.svg
@@ -214,26 +231,6 @@ config:
         - Subsyncarr:
             icon: 🧬
             href: https://subsyncarr.lan.shiba-toast.com
-    - Calendar:
-        widget:
-          type: calendar
-          firstDayInWeek: monday
-          view: monthly
-          showTime: true
-          timezone: America/New_York
-          # integrations: # optional
-          #   - type: sonarr # active widget type that is currently enabled on homepage - possible values: radarr, sonarr, lidarr, readarr, ical
-          #     service_group: media # group name where widget exists
-          #     service_name: sonarr # service name for that widget
-          #     color: teal # optional - defaults to pre-defined color for the service (teal for sonarr)
-          #     baseUrl: https://sonarr.example.tld # optional - adds links to sonarr/radarr pages
-          #     params: # optional - additional params for the service
-          #   - type: radarr # active widget type that is currently enabled on homepage - possible values: radarr, sonarr, lidarr, readarr, ical
-          #     service_group: media # group name where widget exists
-          #     service_name: radarr # service name for that widget
-          #     color: orange # optional - defaults to pre-defined color for the service (teal for sonarr)
-          #     baseUrl: https://radarr.example.tld # optional - adds links to sonarr/radarr pages
-          #     params: # optional - additional params for the service
 
 ingress:
   main:
