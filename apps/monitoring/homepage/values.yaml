@@ -29,6 +29,10 @@ config:
         icon: si-vlcmediaplayer-#ffffff
         tab: Services
 
+      Storage:
+        icon: mdi-harddisk-#ffffff
+        tab: Services
+
       Tools:
         icon: mdi-application-brackets-outline-#ffffff
         tab: Services
@@ -126,7 +130,6 @@ config:
         - Grafana:
             icon: grafana.png
             href: https://grafana.lan.shiba-toast.com
-            container: grafana
         - Argo CD:
             icon: argo-cd.png
             href: https://argocd.lan.shiba-toast.com
@@ -165,7 +168,7 @@ config:
     - Storage:
         - TrueNAS:
             icon: truenas.png
-            href: "truenas.lan.shiba-toast.com"
+            href: "https://truenas.lan.shiba-toast.com"
             widget:
               type: truenas
               url: "{{ HOMEPAGE_VAR_TRUENAS_IP }}"
