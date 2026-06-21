@@ -11,7 +11,7 @@ controller:
     maxUnavailable: 25%
 
 initContainers:
-  - name: download-background
+  download-background:
     image: curlimages/curl:latest
     command:
       - sh
