@@ -21,7 +21,13 @@ config:
         icon: mdi-desktop-classic-#ffffff
         tab: Services
 
-      Monitoring & Networking:
+      Monitoring:
+        icon: mdi-home-analytics-#ffffff
+        tab: Services
+        style: row
+        columns: 4
+
+      Networking:
         icon: mdi-home-analytics-#ffffff
         tab: Services
 
@@ -139,7 +145,7 @@ config:
         units: metric
 
   services:
-    - Monitoring & Networking:
+    - Monitoring:
         - Grafana:
             icon: grafana.png
             href: https://grafana.lan.shiba-toast.com
@@ -149,10 +155,6 @@ config:
         - Traefik:
             icon: traefik.png
             href: https://traefik.lan.shiba-toast.com
-            widget:
-              type: traefik
-              url: http://traefik.kube-system.svc.cluster.local:8080
-              fields: ["routers", "services", "middleware"]
         - Uptime Kuma:
             icon: uptime-kuma.png
             href: https://uptime.lan.shiba-toast.com
@@ -160,6 +162,8 @@ config:
               type: uptimekuma
               url: http://uptime-kuma.monitoring.svc.cluster.local
               slug: homelab
+
+    - Networking:
         - Adguard Home:
             icon: adguard-home.png
             href: "{{ HOMEPAGE_VAR_ADGUARD_IP }}"

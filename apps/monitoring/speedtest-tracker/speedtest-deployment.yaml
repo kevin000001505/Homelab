@@ -95,7 +95,7 @@ spec:
               path: /
               port: 80
             initialDelaySeconds: 30
-            periodSeconds: 10
+            periodSeconds: 30
             failureThreshold: 3
             timeoutSeconds: 10
           livenessProbe:

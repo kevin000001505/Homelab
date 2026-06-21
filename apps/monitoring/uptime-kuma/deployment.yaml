@@ -60,12 +60,12 @@ spec:
               path: / # hit this endpoint
               port: 3001
             initialDelaySeconds: 30 # wait 30s before first check (let app start)
-            periodSeconds: 10 # check every 10s
+            periodSeconds: 30 # check every 30s
             failureThreshold: 3 # restart after 3 consecutive failures
           readinessProbe: # "Are you READY for traffic?"
             httpGet:
               path: /
               port: 3001
             initialDelaySeconds: 10
-            periodSeconds: 5
+            periodSeconds: 30
             failureThreshold: 3 # mark not ready after 3 fails
