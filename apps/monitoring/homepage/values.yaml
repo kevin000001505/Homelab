@@ -10,12 +10,35 @@ controller:
     maxSurge: 25%
     maxUnavailable: 25%
 
+initContainers:
+  - name: download-background
+    image: curlimages/curl:latest
+    command:
+      - sh
+      - -c
+      - |
+        if [ ! -f /images/background.jpg ]; then
+          curl -L -o /images/background.jpg \
+            https://raw.githubusercontent.com/kevin000001505/Homelab/main/docs/images/background.jpg
+        fi
+    volumeMounts:
+      - name: background
+        mountPath: /images
+
+persistence:
+  background:
+    enabled: true
+    type: emptyDir
+    mountPath: /app/public/images
+
 config:
   kubernetes:
     mode: cluster
   settings:
     background:
-      image: https://raw.githubusercontent.com/kevin000001505/Homelab/main/docs/images/background.jpg
+      image: /images/background.jpg
+      blur: sm
+      opacity: 50
     layout:
       System:
         icon: mdi-desktop-classic-#ffffff
@@ -215,6 +238,7 @@ config:
         - Subsyncarr:
             icon: 🧬
             href: https://subsyncarr.lan.shiba-toast.com
+
     - Calendar:
         - Calendar:
             icon: mdi-calendar-month-outline-#ffffff
