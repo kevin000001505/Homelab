@@ -37,9 +37,17 @@ config:
         icon: mdi-calendar-month-outline-#ffffff
         tab: Services
 
-      Grafana Dashboard:
-        header: false
-        tab: Grafana
+      Developer:
+        tab: Bookmarks
+
+      Social:
+        tab: Bookmarks
+
+      Entertainment:
+        tab: Bookmarks
+
+      Useful Links:
+        tab: Bookmarks
 
   bookmarks:
     - Developer:
@@ -54,13 +62,25 @@ config:
         - Reddit:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/reddit.svg
               href: https://www.reddit.com/
+        - Facebook:
+            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/facebook.svg
+              href: https://www.facebook.com/
+        - Instagram:
+            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/instagram.svg
+              href: https://www.instagram.com/
 
     - Entertainment:
         - Youtube:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/youtube.svg
               href: https://www.youtube.com/
+        - Amazon:
+            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/amazon.svg
+              href: https://www.amazon.com/
 
     - Useful Links:
+        - Proxmox VE Scripts:
+            - icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/proxmox-helper-scripts.svg
+              href: https://community-scripts.org/
         - FK Microsoft:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/microsoft-365-admin-center.svg
               href: https://massgrave.dev/windows_11_links
@@ -95,9 +115,9 @@ config:
           hour12: true
     - openmeteo:
         label: Fairfax, VA
-        # latitude:
-        # longitude:
-        #   #timezone: Europe/Kiev # optional
+        latitude: 38.847118
+        longitude: -77.306320
+        timezone: America/New_York
         cache: 5
         units: metric
 
@@ -107,6 +127,9 @@ config:
             icon: grafana.png
             href: https://grafana.lan.shiba-toast.com
             container: grafana
+        - Argo CD:
+            icon: argo-cd.png
+            href: https://argocd.lan.shiba-toast.com
         - Traefik:
             icon: traefik.png
             href: https://traefik.lan.shiba-toast.com
@@ -138,15 +161,29 @@ config:
               version: 1 # optional, default is 1
               key: "{{ HOMEPAGE_VAR_SPEEDTEST_API_KEY }}"
               bitratePrecision: 0 # optional, default is 0
+
+    - Storage:
+        - TrueNAS:
+            icon: truenas.png
+            href: "truenas.lan.shiba-toast.com"
+            widget:
+              type: truenas
+              url: "{{ HOMEPAGE_VAR_TRUENAS_IP }}"
+              version: 2 # optional, defaults to 1
+              # username: user # not required if using api key
+              # password: pass # not required if using api key
+              key: "{{ HOMEPAGE_VAR_TRUENAS_API_KEY }}" # not required if using username / password
+              enablePools: true # optional, defaults to false
+              nasType: scale # defaults to scale, must be set to 'core' if using enablePools with TrueNAS Core
         - Proxmox Backup Server:
             icon: proxmox.png
             href: "{{HOMEPAGE_VAR_PBS_IP}}"
-            widget:
-              type: proxmoxbackupserver
-              url: "{{HOMEPAGE_VAR_PBS_IP}}"
-              username: "{{HOMEPAGE_VAR_PBS_USERNAME}}"
-              password: "{{HOMEPAGE_VAR_PBS_PASSWORD}}"
-              # datastore: backup
+            # widget:
+            #   type: proxmoxbackupserver
+            #   url: "{{HOMEPAGE_VAR_PBS_IP}}"
+            #   username: "{{HOMEPAGE_VAR_PBS_USERNAME}}"
+            #   password: "{{HOMEPAGE_VAR_PBS_PASSWORD}}"
+            #   # datastore: backup
     - Tools:
         - Bentopdf:
             icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/bentopdf.svg
@@ -214,3 +251,13 @@ env:
       secretKeyRef:
         name: homepage-secret
         key: pbs-ip
+  - name: HOMEPAGE_VAR_TRUENAS_IP
+    valueFrom:
+      secretKeyRef:
+        name: homepage-secret
+        key: truenas-ip
+  - name: HOMEPAGE_VAR_TRUENAS_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: homepage-secret
+        key: truenas-api-key
