@@ -43,15 +43,19 @@ config:
 
       Developer:
         tab: Bookmarks
+        header: false
 
       Social:
         tab: Bookmarks
+        header: false
 
       Entertainment:
         tab: Bookmarks
+        header: false
 
       Useful Links:
         tab: Bookmarks
+        header: false
 
   bookmarks:
     - Developer:
@@ -178,15 +182,15 @@ config:
         - TrueNAS:
             icon: truenas.png
             href: "https://truenas.lan.shiba-toast.com"
-            widget:
-              type: truenas
-              url: "{{ HOMEPAGE_VAR_TRUENAS_IP }}"
-              version: 2 # optional, defaults to 1
-              username: "{{ HOMEPAGE_VAR_TRUENAS_USERNAME }}" # not required if using api key
-              password: "{{ HOMEPAGE_VAR_TRUENAS_PASSWORD }}" # not required if using api key
-              # key: "{{ HOMEPAGE_VAR_TRUENAS_API_KEY }}" # not required if using username / password
-              enablePools: true # optional, defaults to false
-              nasType: scale # defaults to scale, must be set to 'core' if using enablePools with TrueNAS Core
+            # widget:
+            #   type: truenas
+            #   url: "{{ HOMEPAGE_VAR_TRUENAS_IP }}"
+            #   version: 2 # optional, defaults to 1
+            #   username: "{{ HOMEPAGE_VAR_TRUENAS_USERNAME }}" # not required if using api key
+            #   password: "{{ HOMEPAGE_VAR_TRUENAS_PASSWORD }}" # not required if using api key
+            #   # key: "{{ HOMEPAGE_VAR_TRUENAS_API_KEY }}" # not required if using username / password
+            #   enablePools: true # optional, defaults to false
+            #   nasType: scale # defaults to scale, must be set to 'core' if using enablePools with TrueNAS Core
         - Proxmox Backup Server:
             icon: proxmox.png
             href: "{{HOMEPAGE_VAR_PBS_IP}}"
