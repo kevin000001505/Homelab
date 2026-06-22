@@ -5,7 +5,7 @@ metadata:
   name: glance-config
   namespace: utilities
 data:
-  glance.yaml: |
+  glance.yml: |
     theme:
       background-color: 100 20 20
 
