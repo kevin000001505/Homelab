@@ -96,6 +96,10 @@ config:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/cloudflare.svg
               href: https://www.cloudflare.com/
               description: ""
+        - Proxmox VE Scripts:
+            - icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/proxmox-helper-scripts.svg
+              href: https://community-scripts.org/
+              description: ""
 
     - Social:
         - Reddit:
@@ -111,6 +115,20 @@ config:
               href: https://www.instagram.com/
               description: ""
 
+    - Useful Links:
+        - Google Map:
+            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/google-map.svg
+              href: https://www.google.com/maps/
+              description: ""
+        - Gemini:
+            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/gemini.svg
+              href: https://gemini.google.com/
+              description: ""
+        - FK Microsoft:
+            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/microsoft-365-admin-center.svg
+              href: https://massgrave.dev/windows_11_links
+              description: ""
+
     - Entertainment:
         - Youtube:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/youtube.svg
@@ -119,16 +137,6 @@ config:
         - Amazon:
             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/amazon.svg
               href: https://www.amazon.com/
-              description: ""
-
-    - Useful Links:
-        - Proxmox VE Scripts:
-            - icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/proxmox-helper-scripts.svg
-              href: https://community-scripts.org/
-              description: ""
-        - FK Microsoft:
-            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/microsoft-365-admin-center.svg
-              href: https://massgrave.dev/windows_11_links
               description: ""
 
   widgets:
@@ -229,6 +237,9 @@ config:
             #   # datastore: backup
 
     - Tools:
+        - Glance:
+            icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/glance.svg
+            href: https://glance.lan.shiba-toast.com
         - Bentopdf:
             icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/bentopdf.svg
             href: https://bentopdf.lan.shiba-toast.com

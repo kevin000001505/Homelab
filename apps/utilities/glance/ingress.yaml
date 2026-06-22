@@ -21,7 +21,6 @@ spec:
                 name: glance
                 port:
                   number: 80
-                  targetPort: 8080
   tls:
     - hosts:
         - glance.lan.shiba-toast.com
