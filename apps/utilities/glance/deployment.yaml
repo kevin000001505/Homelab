@@ -25,6 +25,74 @@ spec:
         - name: config
           configMap:
             name: glance-config
+      initContainers:
+        - name: config-init
+          image: bhgedigital/envsubst # tiny image with envsubst built in
+          command:
+            - sh
+            - -c
+            - envsubst < /template/glance.yml > /config/glance.yml
+          env:
+            - name: IMMICH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: immich-url
+            - name: IMMICH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: immich-api-key
+            - name: JELLYFIN_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: jellyfin-url
+            - name: SCRUTINY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: scrutiny-url
+            - name: RADARR_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: radarr-url
+            - name: SONARR_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: sonarr-url
+            - name: BAZARR_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: bazarr-url
+            - name: PROWLARR_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: prowlarr-url
+            - name: QBITTORRENT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: qbittorrent-url
+            - name: ADGUARD_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: adguard-host
+            - name: ADGUARD_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: adguard-username
+            - name: ADGUARD_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: adguard-password
       containers:
         - name: glance
           image: glanceapp/glance

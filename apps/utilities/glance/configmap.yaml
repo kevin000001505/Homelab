@@ -5,112 +5,471 @@ metadata:
   name: glance-config
   namespace: utilities
 data:
+  # background-color: 100 20 20
   glance.yml: |
     theme:
-      background-color: 100 20 20
+      background-color: 50 1 6
+      primary-color: 24 97 58
+      negative-color: 209 88 54
 
     pages:
-      - name: Home
-        # Optionally, if you only have a single page you can hide the desktop navigation for a cleaner look
-        # hide-desktop-navigation: true
+      - name: Daily
         columns:
-          - size: small
+          - size: small  # Left column
             widgets:
+              - type: to-do
+
               - type: calendar
-                first-day-of-week: monday
-
-              - type: rss
-                limit: 10
-                collapse-after: 3
-                cache: 12h
-                feeds:
-                  - url: https://selfh.st/rss/
-                    title: selfh.st
-                    limit: 4
-                  - url: https://ciechanow.ski/atom.xml
-                  - url: https://www.joshwcomeau.com/rss.xml
-                    title: Josh Comeau
-                  - url: https://samwho.dev/rss.xml
-                  - url: https://ishadeed.com/feed.xml
-                    title: Ahmad Shadeed
-
-              - type: twitch-channels
-                channels:
-                  - theprimeagen
-                  - j_blow
-                  - giantwaffle
-                  - cohhcarnage
-                  - christitustech
-                  - EJ_SA
-
-          - size: full
-            widgets:
-              - type: group
-                widgets:
-                  - type: hacker-news
-                  - type: lobsters
-
-              - type: videos
-                channels:
-                  - UCXuqSBlHAE6Xw-yeJA0Tunw # Linus Tech Tips
-                  - UCR-DXc1voovS8nhAvccRZhg # Jeff Geerling
-                  - UCsBjURrPoezykLs9EqgamOA # Fireship
-                  - UCBJycsmduvYEL83R_U4JriQ # Marques Brownlee
-                  - UCHnyfMqiRRG1u-2MsSQLbXA # Veritasium
-
-              - type: group
-                widgets:
-                  - type: reddit
-                    subreddit: technology
-                    show-thumbnails: true
-                  - type: reddit
-                    subreddit: selfhosted
-                    show-thumbnails: true
-
-          - size: small
-            widgets:
-              - type: weather
-                location: London, United Kingdom
-                units: metric # alternatively "imperial"
-                hour-format: 12h # alternatively "24h"
-                # Optionally hide the location from being displayed in the widget
-                # hide-location: true
 
               - type: markets
                 markets:
                   - symbol: SPY
                     name: S&P 500
-                  - symbol: BTC-USD
-                    name: Bitcoin
+                  - symbol: GEV
+                    name: GE Vernova
                   - symbol: NVDA
                     name: NVIDIA
-                  - symbol: AAPL
-                    name: Apple
-                  - symbol: MSFT
-                    name: Microsoft
+                  - symbol: SPCX
+                    name: SpaceX
+                  - symbol: GOOGL
+                    name: Google
 
-              - type: releases
-                cache: 1d
-                # Without authentication the Github API allows for up to 60 requests per hour. You can create a
-                # read-only token from your Github account settings and use it here to increase the limit.
-                # token: ...
-                repositories:
-                  - glanceapp/glance
-                  - go-gitea/gitea
-                  - immich-app/immich
-                  - syncthing/syncthing
 
-      # Add more pages here:
-      # - name: Your page name
-      #   columns:
-      #     - size: small
-      #       widgets:
-      #         # Add widgets here
+              - type: custom-api
+                title: Random Fact
+                cache: 6h
+                url: https://uselessfacts.jsph.pl/api/v2/facts/random
+                template: |
+                  <p class="size-h4 color-paragraph">{{ .JSON.String "text" }}</p>
 
-      #     - size: full
-      #       widgets:
-      #         # Add widgets here
+              - type: custom-api
+                height: 200px
+                title: Immich Memories
+                cache: 1h
+                url: $IMMICH_URL/api/memories
+                headers:
+                  x-api-key: $IMMICH_API_KEY
+                  Accept: application/json
+                template: |
+                  {{- $memories := .JSON.Array "" -}}
+                  {{- if gt (len $memories) 0 -}}
+                    {{- $first := index $memories 0 -}}
+                    {{- $assets := $first.Array "assets" -}}
+                    {{- if gt (len $assets) 0 -}}
+                      {{- $asset := index $assets 0 -}}
+                      {{- $assetId := $asset.String "id" -}}
+                      <p class="color-primary" style="margin:0 0 6px; text-align:center; font-size:0.85em;">
+                        {{ $first.String "data.year" }} · {{ $first.String "title" }}
+                      </p>
+                      <img
+                        src="$IMMICH_URL/api/assets/{{ $assetId }}/thumbnail?size=preview"
+                        style="max-width:100%; height:auto; display:block; border-radius:4px;"
+                      />
+                    {{- else -}}
+                      <p class="color-subdue" style="text-align:center;">No assets in memory.</p>
+                    {{- end -}}
+                  {{- else -}}
+                    <p class="color-subdue" style="text-align:center;">No memories today.</p>
+                  {{- end -}}
 
-      #     - size: small
-      #       widgets:
-      #         # Add widgets here
+          - size: full  # Center column
+            widgets:
+              - type: search
+                search-engine: google
+                bangs:
+                  - title: YouTube
+                    shortcut: "!yt"
+                    url: https://www.youtube.com/results?search_query={QUERY}
+              - type: monitor
+                title: Services
+                cache: 1m
+                sites:
+                  - title: Jellyfin
+                    url: $JELLYFIN_URL  # Replace with your server IP/domain
+                    check-url: $JELLYFIN_URL
+                    icon: di:jellyfin
+                  - title: Radarr
+                    url: $RADARR_URL
+                    check-url: $RADARR_URL
+                    icon: di:radarr
+                  - title: Sonarr
+                    url: $SONARR_URL
+                    check-url: $SONARR_URL
+                    icon: di:sonarr
+                  - title: Bazarr
+                    url: $BAZARR_URL
+                    check-url: $BAZARR_URL
+                    icon: di:bazarr
+                  - title: Prowlarr
+                    url: $PROWLARR_URL
+                    check-url: $PROWLARR_URL
+                    icon: di:prowlarr
+                  - title: qBittorrent
+                    url: $QBITTORRENT_URL
+                    check-url: $QBITTORRENT_URL
+                    icon: di:qbittorrent
+                  - title: Immich
+                    url: $IMMICH_URL
+                    check-url: $IMMICH_URL
+                    icon: di:immich
+
+              - type: rss
+                limit: 10
+                collapse-after: 5
+                cache: 12h
+                feeds:
+                  - url: https://rss.nytimes.com/services/xml/rss/nyt/World.xml
+                    title: NY Times World
+                  - url: https://feeds.bbci.co.uk/news/world/rss.xml
+                    title: BBC News World
+                  - url: https://news.yahoo.com/rss/mostviewed
+                    title: Yahoo News Most Viewed
+                  - url: https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml
+                    title: NY Times Technology
+                  - url: https://feeds.bbci.co.uk/news/technology/rss.xml
+                    title: BBC News Technology
+                  - url: https://news.google.com/search?q=technology%20news&hl=en-US&gl=US&ceid=US%3Aen
+                    title: Google News Technology
+                  - url: https://feeds.bbci.co.uk/sport/rss.xml
+                    title: BBC Sport
+
+              - type: videos
+                channels:
+                  - UCBJ_e64qala1WPS5LMR-ssw # 車神
+                  - UCPRWWKG0VkBA0Pqa4Jr5j0Q # Joeman
+                  - UC-J5ksuTsGzqAbemiLRgcSw # 本子
+
+              - type: group
+                widgets:
+                  - type: reddit
+                    subreddit: selfhosted
+                    show-thumbnails: true
+                  - type: reddit
+                    subreddit: technology
+                    show-thumbnails: true
+
+          - size: small  # Right column
+            widgets:
+              - type: custom-api
+                title: "Drive Health"
+                url: $SCRUTINY_URL/api/summary
+                cache: 1h
+                method: GET
+                options:
+                  filter_archived: true
+                  sort_by: "device.device_name"
+                  sort_order: "asc"
+                template: |
+                  {{- $filterArchived := .Options.filter_archived }}
+                  {{- $sortBy := .Options.sort_by }}
+                  {{- $sortOrder := .Options.sort_order }}
+                  {{- /* Convert summary map into array so we can sort */}}
+                  {{- $drives := .JSON.Array "data.summary|@values" }}
+                  {{- /* Sort drives by given string field */}}
+                  {{- $sorted := $drives }}
+                  {{- if or (eq $sortBy "device.capacity") (eq $sortBy "smart.power_on_hours") }}
+                    {{- $sorted = sortByInt $sortBy $sortOrder $drives }}
+                  {{- else }}
+                    {{- $sorted = sortByString $sortBy $sortOrder $drives }}
+                  {{- end }}
+                  {{- $total := 0 }}
+                  {{- range $sorted }}
+                    {{- $archived := .Get "device.archived" }}
+                    {{- $archivedBool := false }}
+                    {{- if $archived }}
+                      {{- $archivedBool = eq $archived.Raw "true" }}
+                    {{- end }}
+                    {{- if and $filterArchived $archivedBool }}{{- continue }}{{- end }}
+                    {{- $total = add $total 1 }}
+                  {{- end }}
+                  {{- /* Output each drive */}}
+                  {{- $count := 0 }}
+                  {{- range $sorted }}
+                    {{- $archived := .Get "device.archived" }}
+                    {{- $archivedBool := false }}
+                    {{- if $archived }}
+                      {{- $archivedBool = eq $archived.Raw "true" }}  {{/* compare raw JSON to string "true" */}}
+                    {{- end }}
+                    {{- /* Skip archived drives if filter is on */}}
+                    {{- if and $filterArchived $archivedBool }}{{- continue }}{{- end }}
+                    {{- $count = add $count 1 }}
+                    {{- $device := .Get "device" }}
+                    {{- $deviceName := $device.String "device_name" }}
+                    {{- $model := $device.String "model_name" }}
+                    {{- $wwn := $device.String "wwn" }}
+                    {{- $days := printf "%.0f" (div (.Get "smart.power_on_hours").Num 24) }}
+                    {{- $capacity_print := printf "%.0f" (div (.Get "device.capacity").Num 1000000000000) }}
+                    {{- $status := (.Get "device.device_status").Num }}
+                    {{- $tempHistory := .Array "temp_history" }}
+                    {{- $latestTemp := index (.Array "temp_history") (sub (len (.Array "temp_history")) 1) }}
+                    {{- $latestTempValue := $latestTemp.Int "temp" }}
+                    <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                      <a href="http://${SCRUTINY_URL}/web/device/{{ $wwn }}" target="_blank">
+                        <div>
+                          <strong class="color-highlight" style="text-transform: uppercase; font-size: 1.5rem;">
+                            /DEV/{{ $deviceName }} · {{ $capacity_print }}TB · {{ $latestTempValue }}°C
+                          </strong><br>
+                          <p class="color-highlight" style="margin: 0;">{{ $model }}</p>
+                          <div class="color-primary" style="font-size: 1.2rem;">Powered on for {{ $days }} days</div>
+                        </div>
+                      </a>
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        {{- if eq $status 0.0 }}
+                          <span title="Passed Health Checks" style="font-size: 18px;cursor: default;" class="color-positive">●</span>
+                        {{- else }}
+                          <span title="Failed Health Checks" style="font-size: 18px;cursor:default;" class="color-negative">●</span>
+                        {{- end }}
+                      </div>
+                    </div>
+                    {{- if lt $count $total }}
+                      <hr class="color-secondary" style="margin: 1rem 0; border: none; border-bottom: 1px solid currentColor;" />
+                    {{- end }}
+                  {{- end }}
+
+              - type: dns-stats
+                service: adguard
+                url: $ADGUARD_HOST
+                username: $ADGUARD_USERNAME
+                password: $ADGUARD_PASSWORD
+
+              - type: custom-api
+                title: Weather Forecast
+                body-type: string
+                cache: 1h
+                options:
+                  location: Fairfax, Virginia
+                  weekend_color: "#34363D"
+                  color_clear: "#FFA500"
+                  color_partly: "#EBE387"
+                  color_cloud: "#A9A9A9"
+                  color_smog: "#D3D3D3"
+                  color_drizzle: "#5F9EA0"
+                  color_rain: "#4682B4"
+                  color_freezing_rain: "#B0E0E6"
+                  color_snow: "#FFFFFF"
+                  color_thunderstorm: "#696969"
+                  color_other: "#FFFFFF"
+                  color_red: "#F08C46"
+                  color_yellow: "#F0F046"
+                  color_blue: "#46F0F0"
+                  color_white: "#FFFFFF"
+                template: |
+                  {{/* Weather widget – fully customizable via options */}}
+                  {{ $temp_unit := .Options.StringOr "temp_unit" "celsius" }}
+                  {{ $weekend_color := .Options.StringOr "weekend_color" "var(--color-separator)" }}
+                  {{ $overlay_color := .Options.StringOr "overlay_color" "hsl(var(--bghs), var(--bgl), 50%)" }}
+                  {{ $color_clear := .Options.StringOr "color_clear" "var(--color-text-highlight)" }}
+                  {{ $color_partly := .Options.StringOr "color_partly" "var(--color-text-highlight)"}}
+                  {{ $color_cloud := .Options.StringOr "color_cloud" "var(--color-text-highlight)"}}
+                  {{ $color_smog := .Options.StringOr "color_smog" "var(--color-text-highlight)"}}
+                  {{ $color_drizzle := .Options.StringOr "color_drizzle" "var(--color-text-highlight)"}}
+                  {{ $color_rain := .Options.StringOr "color_rain" "var(--color-text-highlight)"}}
+                  {{ $color_freezing_rain := .Options.StringOr "color_freezing_rain" "var(--color-text-highlight)"}}
+                  {{ $color_snow := .Options.StringOr "color_snow" "var(--color-text-highlight)F"}}
+                  {{ $color_thunderstorm := .Options.StringOr "color_thunderstorm" "var(--color-text-highlight)"}}
+                  {{ $color_other := .Options.StringOr "color_other" "var(--color-text-highlight)"}}
+                  {{ $color_red := .Options.StringOr "color_red" "var(--color-negative)" }}
+                  {{ $color_yellow := .Options.StringOr "color_yellow" "var(--color-text-subdue)" }}
+                  {{ $color_blue := .Options.StringOr "color_blue" "var(--color-positive)" }}
+                  {{ $color_white := .Options.StringOr "color_white" "var(--color-text-highlight)" }}
+                  {{ $temp_red := .Options.FloatOr "temp_red" 27 }}
+                  {{ $temp_yellow := .Options.FloatOr "temp_yellow" 20 }}
+                  {{ $temp_blue := .Options.FloatOr "temp_blue" 10.0 }}
+                  {{ $temp_white := .Options.FloatOr "temp_white" 0 }}
+                  {{ if eq $temp_unit "fahrenheit" }}
+                    {{ $temp_red = .Options.FloatOr "temp_red" 80.0 }}
+                    {{ $temp_yellow = .Options.FloatOr "temp_yellow" 70.0 }}
+                    {{ $temp_blue = .Options.FloatOr "temp_blue" 50.0 }}
+                    {{ $temp_white = .Options.FloatOr "temp_white" 30.0 }}
+                  {{end}}
+
+                  {{ $location_string := replaceAll " " "%20" (.Options.StringOr "location" "") }}
+                  {{ $url1 := printf "https://geocoding-api.open-meteo.com/v1/search?name=%s&count=20&language=en&format=json" $location_string }}
+                  {{ $req1 := newRequest $url1 | getResponse }}
+                  {{ $latitude := $req1.JSON.String "results.0.latitude" }}
+                  {{ $longitude := $req1.JSON.String "results.0.longitude" }}
+
+                  {{ $url2 := printf "https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&temperature_unit=%s&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=Europe/Prague" $latitude $longitude $temp_unit}}
+                  {{ $req2 := newRequest $url2 | getResponse }}
+
+                  <div style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
+                    {{ $dates := $req2.JSON.Array "daily.time" }}
+                    <div style="position: relative; width: 100%; height: 25px;">
+                      {{ range $index, $date := $dates }}
+                        {{ $dateString := .String "" }}
+                        {{ $parsedDate := $dateString | parseTime "DateOnly" }}
+                        {{ $dayOfWeek := $parsedDate.Format "Monday" | trimSuffix "day" | trimSuffix "on" | trimSuffix "es" | trimSuffix "edn" | trimSuffix "urs" | trimSuffix "ri" | trimSuffix "tur" | trimSuffix "n" }}
+                        {{ $day_color := "" }}
+                        {{ if eq $dayOfWeek "Sa" "Su" }}
+                          {{ $day_color = $weekend_color }}
+                        {{ end }}
+                        <div style="text-align: center; width: 10%; height: 25px; line-height: 25px; margin: 0 10% 0 3%; left: {{ mul $index 14 }}%; position: absolute; background-color: {{ $day_color | safeCSS }} ">
+                          <p class="size-h4 color-paragraph">{{ $dayOfWeek }}</p>
+                        </div>
+                      {{ end }}
+                    </div>
+
+                    <div style="position: relative; width: 100%; height: 25px;">
+                      {{ range $index, $date := $dates }}
+                        {{ $dateString := .String "" }}
+                        {{ $trimmedDate := replaceMatches "[0-9]+-[0-9]+-" "" $dateString }}
+                        <div style="text-align: center; width: 10%; height: 25px; line-height: 25px; margin: 0 10% 0 3%; left: {{ mul $index 14 }}%; position: absolute;">
+                          <p class="size-h4 color-paragraph">{{ $trimmedDate }}</p>
+                        </div>
+                      {{ end }}
+                    </div>
+
+                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+                    {{ $codes := $req2.JSON.Array "daily.weathercode" }}
+                    <div style="position: relative; width: 100%; height: 30px;">
+                      {{ range $index, $thiscode := $codes }}
+                        {{ $code := .Int "" }}
+                        <div style="text-align: center; width: 10%; height: 25px; line-height: 25px; margin: 0 10% 0 3%; left: {{ mul $index 14 }}% ; position: absolute;">
+                        {{ $wtype := "" }}
+                        {{ $wicon := "" }}
+                        {{ $wcolor := "" }}
+                        {{ if eq $code 0 }}
+                          {{ $wtype = "Clear" }}
+                          {{ $wicon = "fas fa-sun" }}
+                          {{ $wcolor = $color_clear }}
+                        {{ else if or (eq $code 1) (eq $code 2) }}
+                          {{ $wtype = "Part Clear" }}
+                          {{ $wicon = "fas fa-cloud-sun" }}
+                          {{ $wcolor = $color_partly }}
+                        {{ else if eq $code 3 }}
+                          {{ $wtype = "Cloudy" }}
+                          {{ $wicon = "fas fa-cloud" }}
+                          {{ $wcolor = $color_cloud }}
+                        {{ else if or (eq $code 45) (eq $code 48) }}
+                          {{ $wtype = "Fog" }}
+                          {{ $wicon = "fas fa-smog" }}
+                          {{ $wcolor = $color_smog }}
+                        {{ else if has $code [51 53 55 56 57] }}
+                          {{ $wtype = "Drizzle" }}
+                          {{ $wicon = "fas fa-cloud-rain" }}
+                          {{ $wcolor = $color_drizzle }}
+                        {{ else if has $code [61 63 65 80 81 82] }}
+                          {{ $wtype = "Rain" }}
+                          {{ $wicon = "fas fa-cloud-showers-heavy" }}
+                          {{ $wcolor = $color_rain }}
+                        {{ else if or (eq $code 66) (eq $code 67) }}
+                          {{ $wtype = "Freezing Rain" }}
+                          {{ $wicon = "fas fa-snowflake" }}
+                          {{ $wcolor = $color_freezing_rain }}
+                        {{ else if has $code [71 73 75 77 85 86] }}
+                          {{ $wtype = "Snow" }}
+                          {{ $wicon = "fas fa-snowman" }}
+                          {{ $wcolor = $color_snow }}
+                        {{ else if has $code [95 96 99] }}
+                          {{ $wtype = "Thunderstorm" }}
+                          {{ $wicon = "fas fa-bolt" }}
+                          {{ $wcolor = $color_thunderstorm }}
+                        {{ else }}
+                          {{ $wtype = "Other" }}
+                          {{ $wicon = "fa-solid fa-question" }}
+                          {{ $wcolor = $color_other }}
+                        {{ end }}
+                        <i class={{ $wicon }} style="font-size: 20px; color: {{ $wcolor | safeCSS }};" title={{ $wtype }}></i>
+                        </div>
+                      {{ end }}
+                    </div>
+                  </div>
+
+                  {{ $maxTemps := $req2.JSON.Array "daily.temperature_2m_max" }}
+                  {{ $minTemps := $req2.JSON.Array "daily.temperature_2m_min" }}
+
+                  <div style="display: flex; justify-content: flex-start; align-items: center;">
+                    {{ $max_max := 0 }}
+                    {{ range $maxTemps }}
+                        {{ if gt (.Int "") $max_max }}
+                          {{ $max_max = (.Int "") }}
+                        {{ end }}
+                    {{ end }}
+                    {{ $min_min := 999 }}
+                    {{ range $minTemps }}
+                        {{ if lt (.Int "") $min_min }}
+                          {{ $min_min = (.Int "") }}
+                        {{ end }}
+                    {{ end }}
+                    {{ $max_max = add $max_max 1 }}
+                    {{ $min_min = sub $min_min 1 }}
+
+                    <div style="position: relative; width: 100%; height: 75px;">
+                      {{ $temp_range := sub $max_max $min_min }}
+                      {{ range $index, $thisHigh := $maxTemps }}
+                          {{ $thisLow := index $minTemps $index }}
+                          {{ $thisHigh = $thisHigh.Float "" }}
+                          {{ $thisLow = $thisLow.Float "" }}
+                          {{ $thisHighPct := sub 1 (div (sub $max_max $thisHigh) $temp_range) }}
+                          {{ $thisLowPct := div (sub $thisLow $min_min) $temp_range }}
+                          {{ $thisTempRange := sub $thisHigh $thisLow }}
+                          {{ $red_pos := mul 100 (div (sub $thisHigh $temp_red) $thisTempRange) | toInt }}
+                          {{ $yel_pos := mul 100 (div (sub $thisHigh $temp_yellow) $thisTempRange) | toInt }}
+                          {{ $blu_pos := mul 100 (div (sub $thisHigh $temp_blue) $thisTempRange) | toInt }}
+                          {{ $whi_pos := mul 100 (div (sub $thisHigh $temp_white) $thisTempRange) | toInt }}
+                          {{ $gradient_string := printf "%s %d%%, %s %d%%, %s %d%%, %s %d%%" $color_red $red_pos $color_yellow $yel_pos $color_blue $blu_pos $color_white $whi_pos }}
+
+                          <div style="left: {{ mul $index 14 | add 3 }}%; bottom: {{ mul $thisLowPct 100 | toInt }}%;
+                            height: {{ mul (sub $thisHighPct $thisLowPct) 100 | toInt }}%; position: absolute;
+                            background:linear-gradient({{ $gradient_string | safeCSS }}); width: 10%; text-align: center; border-radius: 10px;">
+                            {{ $top_pos := -2 }}
+                            {{ $bot_pos := -2 }}
+                            {{ $pos_thresh := 0.20 }}
+                            {{ if lt (div $thisTempRange $temp_range) $pos_thresh }}
+                              {{ $top_pos = -17 }}
+                              {{ $bot_pos = -19 }}
+                            {{ else if and (lt (div $thisTempRange $temp_range) (mul $pos_thresh 2)) (lt (sub 1 $thisHighPct) $thisLowPct) }}
+                              {{ $bot_pos = -19 }}
+                            {{ else if and (lt (div $thisTempRange $temp_range) (mul $pos_thresh 2)) (gt (sub 1 $thisHighPct) $thisLowPct) }}
+                              {{ $top_pos = -17 }}
+                            {{ end }}
+                              <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: {{ $overlay_color | safeCSS }}; z-index: 1;  border-radius: 10px;">
+                                <p style='color: #F0F0F0; position: absolute; top: {{ $top_pos }}px; left: 0px; right: 0px'>{{ $thisHigh | toInt }}</p>
+                                <p style='color: #F0F0F0; position: absolute; bottom: {{ $bot_pos }}px; left: 0px; right:0px'>{{ $thisLow | toInt }}</p>
+                              </div>
+                            </div>
+                      {{ end }}
+                    </div>
+                  </div>
+
+              - type: bookmarks
+                groups:
+                  - Develops:
+                      - title: Proxmox VE Scripts
+                        url: https://community-scripts.org/
+                      - title: Github
+                        url: https://github.com/
+                      - title: Cloudflare
+                        url: https://www.cloudflare.com/
+
+                  - Tools:
+                      - title: Gemini
+                        url: https://gemini.google.com/
+                      - title: Google Map
+                        url: https://www.google.com/maps/
+                      - title: FK Microsoft
+                        url: https://massgrave.dev/windows_11_links
+
+                  - title: Entertainment
+                    color: 10 70 50
+                    links:
+                      - title: Netflix
+                        url: https://www.netflix.com/
+                      - title: Plex
+                        url: https://app.plex.tv/desktop/#!/
+                      - title: YouTube
+                        url: https://www.youtube.com/
+                      - title: Amazon
+                        url: https://www.amazon.com/
+
+                  - title: Social
+                    color: 200 50 50
+                    links:
+                      - title: Reddit
+                        url: https://www.reddit.com/
+                      - title: LinkedIn
+                        url: https://www.linkedin.com/
+                      - title: Instagram
+                        url: https://www.instagram.com/
+                      - title: Facebook
+                        url: https://www.facebook.com/
