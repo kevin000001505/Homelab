@@ -22,9 +22,11 @@ spec:
         tier: utilities
     spec:
       volumes:
-        - name: config
+        - name: config-template # ← ConfigMap goes here
           configMap:
             name: glance-config
+        - name: config # ← emptyDir for substituted output
+          emptyDir: {}
       initContainers:
         - name: config-init
           image: bhgedigital/envsubst # tiny image with envsubst built in
@@ -93,6 +95,11 @@ spec:
                 secretKeyRef:
                   name: glance-secret
                   key: adguard-password
+            - name: ARGOCD_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secret
+                  key: argocd-url
       containers:
         - name: glance
           image: glanceapp/glance

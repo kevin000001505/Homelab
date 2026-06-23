@@ -112,6 +112,9 @@ data:
                     url: $IMMICH_URL
                     check-url: $IMMICH_URL
                     icon: di:immich
+                  - tittle: $ARGOCD_URL
+                    check-url: $ARGOCD_URL
+                    icon: di:argo-cd
 
               - type: rss
                 limit: 10
