@@ -57,28 +57,69 @@ data:
                   <p class="size-h4 color-paragraph">{{ .JSON.String "text" }}</p>
 
               - type: custom-api
-                height: 200px
                 title: Immich Memories
                 cache: 1h
                 url: $IMMICH_URL/api/memories
                 headers:
                   x-api-key: $IMMICH_API_KEY
                   Accept: application/json
+                options:
+                  # Single knob for the slideshow size — change this one value.
+                  image_height: "500px"
                 template: |
                   {{- $memories := .JSON.Array "" -}}
                   {{- if gt (len $memories) 0 -}}
-                    {{- $first := index $memories 0 -}}
-                    {{- $assets := $first.Array "assets" -}}
-                    {{- if gt (len $assets) 0 -}}
-                      {{- $asset := index $assets 0 -}}
-                      {{- $assetId := $asset.String "id" -}}
-                      <p class="color-primary" style="margin:0 0 6px; text-align:center; font-size:0.85em;">
-                        {{ $first.String "data.year" }} · {{ $first.String "title" }}
-                      </p>
-                      <img
-                        src="$IMMICH_URL/api/assets/{{ $assetId }}/thumbnail?size=preview"
-                        style="max-width:100%; height:auto; display:block; border-radius:4px;"
-                      />
+                    {{- /* Pass 1: count how many assets we'll show (cap at 10) */ -}}
+                    {{- $count := 0 -}}
+                    {{- range $memories -}}
+                      {{- range .Array "assets" -}}
+                        {{- if lt $count 10 -}}{{- $count = add $count 1 -}}{{- end -}}
+                      {{- end -}}
+                    {{- end -}}
+                    {{- if gt $count 0 -}}
+                      {{- /* Each slide is shown 5s; total loop = count * 5s.    */ -}}
+                      {{- /* A pure-CSS crossfade rotates them with no JS/refetch. */ -}}
+                      <style>
+                        @keyframes immichFade {
+                          0% { opacity: 0; }
+                          1% { opacity: 1; }
+                          {{ printf "%.2f" (sub (div 100.0 $count) 1.0) }}% { opacity: 1; }
+                          {{ printf "%.2f" (div 100.0 $count) }}% { opacity: 0; }
+                          100% { opacity: 0; }
+                        }
+                        .immich-slide {
+                          position: absolute; inset: 0;
+                          opacity: 0;
+                          animation: immichFade {{ mul $count 5 }}s infinite;
+                        }
+                        .immich-slide img {
+                          width: 100%; height: 100%;
+                          object-fit: cover; border-radius: 4px; display: block;
+                        }
+                        .immich-cap {
+                          position: absolute; top: 6px; left: 0; right: 0; margin: 0;
+                          text-align: center; font-size: 0.8em;
+                          color: var(--color-text-highlight);
+                          text-shadow: 0 0 4px rgba(0,0,0,0.85);
+                        }
+                      </style>
+                      <div style="position: relative; width: 100%; height: {{ .Options.StringOr "image_height" "200px" }};">
+                        {{- $i := 0 -}}
+                        {{- range $mem := $memories -}}
+                          {{- $year := $mem.String "data.year" -}}
+                          {{- $mtitle := $mem.String "title" -}}
+                          {{- range $asset := $mem.Array "assets" -}}
+                            {{- if lt $i 10 -}}
+                              {{- $assetId := $asset.String "id" -}}
+                              <div class="immich-slide" style="animation-delay: {{ mul $i 5 }}s;">
+                                <img src="$IMMICH_URL/api/assets/{{ $assetId }}/thumbnail?size=preview" />
+                                <p class="immich-cap">{{ $year }} · {{ $mtitle }}</p>
+                              </div>
+                              {{- $i = add $i 1 -}}
+                            {{- end -}}
+                          {{- end -}}
+                        {{- end -}}
+                      </div>
                     {{- else -}}
                       <p class="color-subdue" style="text-align:center;">No assets in memory.</p>
                     {{- end -}}
@@ -88,6 +129,7 @@ data:
 
               - type: videos
                 style: vertical-list
+                cache: 24h
                 channels:
                   - UCBJ_e64qala1WPS5LMR-ssw # 車神
                   - UCPRWWKG0VkBA0Pqa4Jr5j0Q # Joeman
@@ -167,7 +209,7 @@ data:
                         title: NY Times Technology
                       - url: https://feeds.bbci.co.uk/news/technology/rss.xml
                         title: BBC News Technology
-                      - url: https://news.google.com/search?q=technology%20news&hl=en-US&gl=US&ceid=US%3Aen
+                      - url: https://news.google.com/rss/search?q=technology&hl=en-US&gl=US&ceid=US:en
                         title: Google News Technology
                   - type: rss
                     title: Sport
