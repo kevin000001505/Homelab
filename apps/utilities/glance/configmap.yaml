@@ -21,18 +21,32 @@ data:
 
               - type: calendar
 
-              - type: markets
-                markets:
-                  - symbol: SPY
-                    name: S&P 500
-                  - symbol: GEV
-                    name: GE Vernova
-                  - symbol: NVDA
-                    name: NVIDIA
-                  - symbol: SPCX
-                    name: SpaceX
-                  - symbol: GOOGL
-                    name: Google
+              - type: group
+                widgets:
+                  - type: markets
+                    title: US
+                    markets:
+                      - symbol: SPY
+                        name: S&P 500
+                      - symbol: GEV
+                        name: GE Vernova
+                      - symbol: NVDA
+                        name: NVIDIA
+                      - symbol: SPCX
+                        name: SpaceX
+                      - symbol: GOOGL
+                        name: Google
+                  - type: markets
+                    title: Taiwan
+                    markets:
+                      - symbol: 2330.TW
+                        name: TSMC
+                      - symbol: 0050.TW
+                        name: 0050
+                      - symbol: 2454.TW
+                        name: MediaTek
+                      - symbol: 2412.TW
+                        name: Chunghwa Telecom
 
 
               - type: custom-api
@@ -121,7 +135,10 @@ data:
                     icon: di:immich
                   - title: Argo CD
                     url: $ARGOCD_URL
-                    check-url: $ARGOCD_URL
+                    # Argo CD runs in this cluster; check it via its in-cluster
+                    # Service (port 80) instead of the external host, which goes
+                    # out to Cloudflare and fails the TLS handshake.
+                    check-url: http://argocd-server.argocd.svc.cluster.local
                     icon: di:argo-cd
 
               - type: group
