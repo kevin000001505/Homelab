@@ -96,10 +96,10 @@ data:
                     url: $SONARR_URL
                     check-url: $SONARR_URL
                     icon: di:sonarr
-                  - title: Bazarr
-                    url: $BAZARR_URL
-                    check-url: $BAZARR_URL
-                    icon: di:bazarr
+                  - title: Seerr
+                    url: $SEERR_URL
+                    check-url: $SEERR_URL
+                    icon: di:seerr
                   - title: Prowlarr
                     url: $PROWLARR_URL
                     check-url: $PROWLARR_URL
@@ -112,13 +112,14 @@ data:
                     url: $IMMICH_URL
                     check-url: $IMMICH_URL
                     icon: di:immich
-                  - tittle: $ARGOCD_URL
+                  - title: Argo CD
+                    url: $ARGOCD_URL
                     check-url: $ARGOCD_URL
                     icon: di:argo-cd
 
               - type: rss
                 limit: 10
-                collapse-after: 5
+                collapse-after: 10
                 cache: 12h
                 feeds:
                   - url: https://rss.nytimes.com/services/xml/rss/nyt/World.xml
@@ -143,6 +144,7 @@ data:
                   - UC-J5ksuTsGzqAbemiLRgcSw # 本子
 
               - type: group
+                collapse-after: 10
                 widgets:
                   - type: reddit
                     subreddit: selfhosted
@@ -240,7 +242,7 @@ data:
                 body-type: string
                 cache: 1h
                 options:
-                  location: Fairfax, Virginia
+                  location: New York
                   weekend_color: "#34363D"
                   color_clear: "#FFA500"
                   color_partly: "#EBE387"
@@ -268,7 +270,7 @@ data:
                   {{ $color_drizzle := .Options.StringOr "color_drizzle" "var(--color-text-highlight)"}}
                   {{ $color_rain := .Options.StringOr "color_rain" "var(--color-text-highlight)"}}
                   {{ $color_freezing_rain := .Options.StringOr "color_freezing_rain" "var(--color-text-highlight)"}}
-                  {{ $color_snow := .Options.StringOr "color_snow" "var(--color-text-highlight)F"}}
+                  {{ $color_snow := .Options.StringOr "color_snow" "var(--color-text-highlight)"}}
                   {{ $color_thunderstorm := .Options.StringOr "color_thunderstorm" "var(--color-text-highlight)"}}
                   {{ $color_other := .Options.StringOr "color_other" "var(--color-text-highlight)"}}
                   {{ $color_red := .Options.StringOr "color_red" "var(--color-negative)" }}
@@ -292,7 +294,7 @@ data:
                   {{ $latitude := $req1.JSON.String "results.0.latitude" }}
                   {{ $longitude := $req1.JSON.String "results.0.longitude" }}
 
-                  {{ $url2 := printf "https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&temperature_unit=%s&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=Europe/Prague" $latitude $longitude $temp_unit}}
+                  {{ $url2 := printf "https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&temperature_unit=%s&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=America/New_York" $latitude $longitude $temp_unit}}
                   {{ $req2 := newRequest $url2 | getResponse }}
 
                   <div style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
@@ -347,11 +349,11 @@ data:
                           {{ $wtype = "Fog" }}
                           {{ $wicon = "fas fa-smog" }}
                           {{ $wcolor = $color_smog }}
-                        {{ else if has $code [51 53 55 56 57] }}
+                        {{ else if or (eq $code 51) (eq $code 53) (eq $code 55) (eq $code 56) (eq $code 57) }}
                           {{ $wtype = "Drizzle" }}
                           {{ $wicon = "fas fa-cloud-rain" }}
                           {{ $wcolor = $color_drizzle }}
-                        {{ else if has $code [61 63 65 80 81 82] }}
+                        {{ else if or (eq $code 61) (eq $code 63) (eq $code 65) (eq $code 80) (eq $code 81) (eq $code 82) }}
                           {{ $wtype = "Rain" }}
                           {{ $wicon = "fas fa-cloud-showers-heavy" }}
                           {{ $wcolor = $color_rain }}
@@ -359,11 +361,11 @@ data:
                           {{ $wtype = "Freezing Rain" }}
                           {{ $wicon = "fas fa-snowflake" }}
                           {{ $wcolor = $color_freezing_rain }}
-                        {{ else if has $code [71 73 75 77 85 86] }}
+                        {{ else if or (eq $code 71) (eq $code 73) (eq $code 75) (eq $code 77) (eq $code 85) (eq $code 86) }}
                           {{ $wtype = "Snow" }}
                           {{ $wicon = "fas fa-snowman" }}
                           {{ $wcolor = $color_snow }}
-                        {{ else if has $code [95 96 99] }}
+                        {{ else if or (eq $code 95) (eq $code 96) (eq $code 99) }}
                           {{ $wtype = "Thunderstorm" }}
                           {{ $wicon = "fas fa-bolt" }}
                           {{ $wcolor = $color_thunderstorm }}
@@ -437,7 +439,9 @@ data:
 
               - type: bookmarks
                 groups:
-                  - Develops:
+                  - title: Develops
+                    color: 200 50 50
+                    links:
                       - title: Proxmox VE Scripts
                         url: https://community-scripts.org/
                       - title: Github
@@ -445,7 +449,9 @@ data:
                       - title: Cloudflare
                         url: https://www.cloudflare.com/
 
-                  - Tools:
+                  - title: Tools
+                    color: 200 50 50
+                    links:
                       - title: Gemini
                         url: https://gemini.google.com/
                       - title: Google Map

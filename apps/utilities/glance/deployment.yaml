@@ -33,7 +33,10 @@ spec:
           command:
             - sh
             - -c
-            - envsubst < /template/glance.yml > /config/glance.yml
+            # Only substitute the explicitly-listed vars, otherwise envsubst would
+            # also eat Glance's own Go-template vars ($code, $first, $memories, ...)
+            # and break the config with "unexpected ':=' in command".
+            - envsubst '$IMMICH_URL $IMMICH_API_KEY $JELLYFIN_URL $SCRUTINY_URL $RADARR_URL $SONARR_URL $SEERR_URL $PROWLARR_URL $QBITTORRENT_URL $ADGUARD_HOST $ADGUARD_USERNAME $ADGUARD_PASSWORD $ARGOCD_URL' < /template/glance.yml > /config/glance.yml
           env:
             - name: IMMICH_URL
               valueFrom:
@@ -65,11 +68,11 @@ spec:
                 secretKeyRef:
                   name: glance-secret
                   key: sonarr-url
-            - name: BAZARR_URL
+            - name: SEERR_URL
               valueFrom:
                 secretKeyRef:
                   name: glance-secret
-                  key: bazarr-url
+                  key: seerr-url
             - name: PROWLARR_URL
               valueFrom:
                 secretKeyRef:
@@ -100,6 +103,12 @@ spec:
                 secretKeyRef:
                   name: glance-secret
                   key: argocd-url
+
+          volumeMounts: # ← this was missing
+            - name: config-template
+              mountPath: /template
+            - name: config
+              mountPath: /config
       containers:
         - name: glance
           image: glanceapp/glance
