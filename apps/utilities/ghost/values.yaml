@@ -33,6 +33,8 @@ mysql:
 
 persistence:
   ghost:
-    existingClaim: ghost-pvc
+    storageClassName: local-path
+    size: 10Gi
   mysql:
-    existingClaim: ghost-mysql-pvc
+    storageClassName: local-path
+    size: 20Gi
