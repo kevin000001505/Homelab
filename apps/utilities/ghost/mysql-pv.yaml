@@ -10,6 +10,9 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
+  claimRef: # ← locks to your PVC, ArgoCD won't fight it
+    namespace: ghost
+    name: my-ghost-ghost-on-kubernetes-mysql-pvc
   hostPath:
     path: /appdata/ghost/mysql
     type: DirectoryOrCreate
