@@ -35,3 +35,7 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # Make sync operations (not just drift detection) honor ignoreDifferences,
+      # so the out-of-band SMTP creds in the config secret are never overwritten
+      # by the chart's placeholder mail config on a future sync.
+      - RespectIgnoreDifferences=true
