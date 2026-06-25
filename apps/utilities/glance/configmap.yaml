@@ -449,6 +449,8 @@ data:
                   - title: Develops
                     color: 200 50 50
                     links:
+                      - title: Kevin Blog
+                        url: https://ghost.shiba-toast.com
                       - title: Proxmox VE Scripts
                         url: https://community-scripts.org/
                       - title: Github
@@ -460,7 +462,7 @@ data:
                     color: 200 50 50
                     links:
                       - title: Gemini
-                        url: https://gemini.google.com/
+                        url: https://gemini.google.com/u/1/app?pageId=none
                       - title: Google Map
                         url: https://www.google.com/maps/
                       - title: FK Microsoft

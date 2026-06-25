@@ -1,0 +1,38 @@
+# values.yaml
+ghost:
+  url: https://ghost.shiba-toast.com
+  adminUrl: https://ghost.shiba-toast.com
+
+ingress:
+  enabled: true
+  className: traefik
+  preset: custom # lets you control all annotations manually
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  hosts:
+    - host: ghost.shiba-toast.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    enabled: true
+    mode: manual # just reference the secret; cert-manager creates it
+    secretName: ghost-tls
+    hosts:
+      - ghost.shiba-toast.com
+
+mysql:
+  enabled: true
+  auth:
+    database: ghost_prod
+    username: ghost_user
+    password: secure-password
+    rootPassword: secure-root-password
+
+persistence:
+  ghost:
+    existingClaim: ghost-pvc
+  mysql:
+    existingClaim: ghost-mysql-pvc
