@@ -1,7 +1,7 @@
 # values.yaml
 ghost:
-  url: https://ghost.shiba-toast.com
-  adminUrl: https://ghost.shiba-toast.com
+  url: https://ghost.lan.shiba-toast.com
+  adminUrl: https://ghost.lan.shiba-toast.com
 
 ingress:
   enabled: true
@@ -12,7 +12,7 @@ ingress:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
   hosts:
-    - host: ghost.shiba-toast.com
+    - host: ghost.lan.shiba-toast.com
       paths:
         - path: /
           pathType: Prefix
@@ -21,7 +21,7 @@ ingress:
     mode: manual # just reference the secret; cert-manager creates it
     secretName: ghost-tls
     hosts:
-      - ghost.shiba-toast.com
+      - ghost.lan.shiba-toast.com
 
 mysql:
   enabled: true
