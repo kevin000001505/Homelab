@@ -1,4 +1,3 @@
-# argocd/apps/ghost.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,14 +5,33 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  source:
-    repoURL: https://github.com/kevin000001505/Homelab.git
-    targetRevision: HEAD
-    path: apps/utilities/ghost
+  sources:
+    - repoURL: https://sredevopsorg.github.io/ghost-on-kubernetes
+      chart: ghost-on-kubernetes
+      targetRevision: 1.1.1
+      helm:
+        releaseName: my-ghost
+        valueFiles:
+          - $values/apps/utilities/ghost/values.yaml
+    - repoURL: https://github.com/kevin000001505/Homelab.git
+      targetRevision: main
+      ref: values
   destination:
-    server: https://192.168.1.15:6443
+    server: https://kubernetes.default.svc
     namespace: ghost
-  syncPolicy: {}
-    # automated:
-    #   prune: true
-    #   selfHeal: true
+  # SMTP creds are injected directly into this secret's data (see
+  # secrets/ghost-config.production.json, git-ignored). Ignore data diffs so
+  # ArgoCD/Helm does not revert it back to the chart's placeholder mail config.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: my-ghost-ghost-on-kubernetes-config
+      namespace: ghost
+      jsonPointers:
+        - /data
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
