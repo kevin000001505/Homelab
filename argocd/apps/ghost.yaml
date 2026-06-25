@@ -1,20 +1,18 @@
-# argocd/apps/utilities.yaml
+# argocd/apps/ghost.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: utilities
+  name: ghost
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/kevin000001505/Homelab.git
     targetRevision: HEAD
-    path: apps/utilities
-    directory:
-      recurse: true
+    path: apps/utilities/ghost
   destination:
     server: https://192.168.1.15:6443
-    namespace: utilities
+    namespace: ghost
   syncPolicy: {}
     # automated:
     #   prune: true
