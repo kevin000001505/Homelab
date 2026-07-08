@@ -46,7 +46,8 @@ spec:
       containers:
         - name: dawarich-app
           image: freikin/dawarich:latest
-          command: ["bin/rails", "server", "-p", "3000", "-b", "::"]
+          command: ["web-entrypoint.sh"]
+          args: ["bin/rails", "server", "-p", "3000", "-b", "::"]
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
