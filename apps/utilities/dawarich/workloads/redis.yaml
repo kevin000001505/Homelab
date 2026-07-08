@@ -34,7 +34,8 @@ spec:
             - name: shared
               mountPath: /data
           livenessProbe:
-            command: ["redis-cli", "--raw", "incr", "ping"]
+            exec:
+              command: ["redis-cli", "--raw", "incr", "ping"]
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 5
