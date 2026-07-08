@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dawarich-db
+  namespace: utilities
+  labels:
+    app: dawarich-db
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dawarich-db
+      tier: database
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: dawarich-db
+        tier: database
+    spec:
+      volumes:
+        - name: shared
+          persistentVolumeClaim:
+            claimName: dawarich-shared
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: dawarich-db-data
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
+
+      containers:
+        - name: dawarich-db
+          image: postgis/postgis:17-3.5-alpine
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql/data
+            - name: shared
+              mountPath: /var/shared
+            - name: dshm
+              mountPath: /dev/shm
+
+          envFrom:
+            - secretRef:
+                name: dawarich-db-secrets
+
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "dawarich"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dawarich-db
+  namespace: utilities
+spec:
+  selector:
+    app: dawarich-db
+  ports:
+    - port: 5432
+      targetPort: 5432

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dawarich-config
+  namespace: utilities
+data:
+  RAILS_ENV: production
+  REDIS_URL: redis://dawarich-redis:6379
+
+  TIME_ZONE: "America/New_York"
+  APPLICATION_PROTOCOL: http
+  SELF_HOSTED: "true"
+  STORE_GEODATA: "true"
+  RAILS_LOG_TO_STDOUT: "true"
+  PROMETHEUS_EXPORTER_ENABLED: "true"

@@ -15,7 +15,7 @@ spec:
   destination:
     server: https://192.168.1.15:6443
     namespace: utilities
-  syncPolicy: {}
-    # automated:
-    #   prune: true
-    #   selfHeal: true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

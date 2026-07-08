@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dawarich
+  namespace: utilities
+  labels:
+    app: dawarich
+    tier: utilities
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  rules:
+    - host: dawarich.lan.shiba-toast.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dawarich-app
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - dawarich.lan.shiba-toast.com
+      secretName: dawarich-tls

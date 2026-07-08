@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dawarich-sidekiq
+  namespace: utilities
+  labels:
+    app: dawarich-sidekiq
+    tier: utilities
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  minReadySeconds: 10
+  selector:
+    matchLabels:
+      app: dawarich-sidekiq
+  template:
+    metadata:
+      labels:
+        app: dawarich-sidekiq
+        tier: utilities
+    spec:
+      volumes:
+        - name: public
+          persistentVolumeClaim:
+            claimName: dawarich-public
+        - name: watched
+          persistentVolumeClaim:
+            claimName: dawarich-watched
+        - name: storage
+          persistentVolumeClaim:
+            claimName: dawarich-storage
+
+      initContainers:
+        - name: wait-for-app
+          image: busybox:1.36
+          command:
+            [
+              "sh",
+              "-c",
+              "until wget -qO- http://dawarich-app/api/v1/health | grep -q ok; do sleep 2; done",
+            ]
+
+      containers:
+        - name: dawarich-sidekiq
+          image: freikin/dawarich:latest
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: public
+              mountPath: /var/app/public
+            - name: watched
+              mountPath: /var/app/tmp/imports/watched
+            - name: storage
+              mountPath: /var/app/storage
+
+          command: ["sidekiq-entrypoint.sh"]
+          args: ["sidekiq"]
+
+          envFrom:
+            - secretRef:
+                name: dawarich-secrets
+            - configMapRef:
+                name: dawarich-config
+
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "4Gi"
+
+          livenessProbe:
+            exec:
+              command: ["pgrep", "-f", "sidekiq"]
+            initialDelaySeconds: 30
+            periodSeconds: 10

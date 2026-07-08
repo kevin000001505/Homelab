@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dawarich-shared-pv
+spec:
+  volumeMode: Filesystem
+  hostPath:
+    path: /appdata/dawarich/shared
+    type: DirectoryOrCreate
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
