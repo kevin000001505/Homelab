@@ -134,6 +134,7 @@ data:
                   - UCBJ_e64qala1WPS5LMR-ssw # 車神
                   - UCPRWWKG0VkBA0Pqa4Jr5j0Q # Joeman
                   - UC-J5ksuTsGzqAbemiLRgcSw # 本子
+                  - UCsurZ1XYyLBXz5eFeiizjCQ # 毛怪老師
 
           - size: full  # Center column
             widgets:
@@ -450,7 +451,7 @@ data:
                     color: 200 50 50
                     links:
                       - title: Kevin Blog
-                        url: https://ghost.shiba-toast.com
+                        url: https://ghost.lan.shiba-toast.com/ghost
                       - title: Proxmox VE Scripts
                         url: https://community-scripts.org/
                       - title: Github
