@@ -7,11 +7,12 @@ metadata:
     app: dawarich
     tier: utilities
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure # web for HTTP, websecure for HTTPS. Can use both by separating with comma: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-geoblock@kubernetescrd, kube-system-fail2ban@kubernetescrd # Example of using a middleware to block certain countries (redumdant for internal apps)
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   rules:
-    - host: dawarich.lan.shiba-toast.com
+    - host: dawarich.shiba-toast.com
       http:
         paths:
           - path: /
@@ -23,5 +24,5 @@ spec:
                   number: 80
   tls:
     - hosts:
-        - dawarich.lan.shiba-toast.com
+        - dawarich.shiba-toast.com
       secretName: dawarich-tls
