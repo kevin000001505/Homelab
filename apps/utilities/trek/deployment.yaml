@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trek
+  namespace: utilities
+  labels:
+    app: trek
+    tier: utilities
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trek
+      tier: utilities
+  template:
+    metadata:
+      labels:
+        app: trek
+        tier: utilities
+    spec:
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: trek-pvc
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
+
+      containers:
+        - name: trek
+          image: mauriceboe/trek:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              protocol: TCP
+
+          envFrom:
+            - secretRef:
+                name: trek-secrets
+
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+              subPath: data
+            - name: data
+              mountPath: /app/uploads
+              subPath: uploads
+            - name: tmp
+              mountPath: /tmp
+
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trek
+  namespace: utilities
+spec:
+  selector:
+    app: trek
+  ports:
+    - port: 80
+      targetPort: 3000

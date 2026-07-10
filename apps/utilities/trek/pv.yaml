@@ -11,4 +11,4 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   hostPath:
     path: /appdata/trek
-    type: Directory
+    type: DirectoryOrCreate
