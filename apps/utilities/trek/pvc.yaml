@@ -3,9 +3,14 @@ kind: PersistentVolumeClaim
 metadata:
   name: trek-pvc
   namespace: utilities
+  labels:
+    app: trek
+    tier: storage
 spec:
   accessModes:
     - ReadWriteOnce
+  volumeName: trek-pv
+  volumeMode: Filesystem
   resources:
     requests:
       storage: 10Gi
