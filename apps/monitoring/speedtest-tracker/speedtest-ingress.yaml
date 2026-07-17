@@ -8,9 +8,10 @@ metadata:
     tier: monitoring
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-authentik@kubernetescrd
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
-  ingressClassName:
+  ingressClassName: traefik
   rules:
     - host: speedtest.lan.shiba-toast.com
       http:

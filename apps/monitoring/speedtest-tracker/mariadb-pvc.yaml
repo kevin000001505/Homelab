@@ -5,7 +5,7 @@ metadata:
   namespace: monitoring
   labels:
     app: speedtest-db
-    tier: monitoring
+    tier: database
 spec:
   storageClassName: ""
   volumeName: speedtest-db-pv
