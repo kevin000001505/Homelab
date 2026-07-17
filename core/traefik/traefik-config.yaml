@@ -5,6 +5,9 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
+    ingressClass:
+      enabled: true
+      isDefaultClass: true
     experimental:
       plugins:
         geoblock:
@@ -16,6 +19,7 @@ spec:
     additionalArguments:
       - "--accesslog=true"
       - "--accesslog.format=json"
+      - "--providers.kubernetescrd.allowCrossNamespace=true"
       - "--entrypoints.websecure.http.middlewares=kube-system-geoblock@kubernetescrd,kube-system-fail2ban@kubernetescrd"
       - "--entrypoints.web.http.middlewares=kube-system-geoblock@kubernetescrd,kube-system-fail2ban@kubernetescrd"
       - "--metrics.prometheus=true"
