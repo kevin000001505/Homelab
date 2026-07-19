@@ -8,6 +8,7 @@ metadata:
     tier: utilities
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure # web for HTTP, websecure for HTTPS. Can use both by separating with comma: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-authentik@kubernetescrd
     # traefik.ingress.kubernetes.io/router.middlewares: kube-system-geoblock@kubernetescrd # Example of using a middleware to block certain countries (redumdant for internal apps)
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
