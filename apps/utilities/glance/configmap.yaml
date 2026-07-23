@@ -468,6 +468,8 @@ data:
                         url: https://www.google.com/maps/
                       - title: FK Microsoft
                         url: https://massgrave.dev/windows_11_links
+                      - title: Book Resources
+                        url: https://libgen.com.de
 
                   - title: Entertainment
                     color: 10 70 50
