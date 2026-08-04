@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: bentopdf
-          image: bentopdf/bentopdf:latest
+          image: bentopdf/bentopdf:1.15.3
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
