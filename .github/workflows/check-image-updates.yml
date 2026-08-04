@@ -1,0 +1,65 @@
+name: Check for image updates
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # Mondays, 06:00 UTC
+  workflow_dispatch: {}    # allow manual trigger from the Actions tab
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build matrix of app indices
+        id: set-matrix
+        run: |
+          count=$(yq -r 'length' scripts/apps.yaml)
+          indices=$(seq 0 $((count - 1)) | jq -R . | jq -s -c .)
+          echo "matrix=${indices}" >> "$GITHUB_OUTPUT"
+
+  check:
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        index: ${{ fromJson(needs.discover.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install skopeo
+        run: sudo apt-get update && sudo apt-get install -y skopeo
+
+      - name: Check this app
+        id: check
+        run: |
+          chmod +x scripts/check-one-app.sh
+          scripts/check-one-app.sh scripts/apps.yaml "${{ matrix.index }}"
+
+      - name: Open PR if a newer version was found
+        if: steps.check.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: bump ${{ steps.check.outputs.name }} to ${{ steps.check.outputs.latest }}"
+          title: "Update ${{ steps.check.outputs.name }} to ${{ steps.check.outputs.latest }}"
+          body: |
+            Automated image version bump.
+
+            | | |
+            |---|---|
+            | App     | `${{ steps.check.outputs.name }}` |
+            | Current | `${{ steps.check.outputs.current }}` |
+            | Latest  | `${{ steps.check.outputs.latest }}` |
+
+            Review upstream release notes before merging. On merge, ArgoCD
+            syncs this to the cluster automatically.
+
+            If the new version misbehaves after deploy:
+            - `git revert` this merge commit, or
+            - `argocd app rollback <app>`
+          branch: "auto/update-${{ steps.check.outputs.name }}"
+          delete-branch: true
+          labels: image-update

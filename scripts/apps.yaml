@@ -1,0 +1,32 @@
+# One entry per app you want the version-check script to manage.
+#
+# name:         label used in logs
+# image:        registry repo, no tag (e.g. "linuxserver/sonarr", "ghcr.io/immich-app/immich-server")
+# manifest:     path (relative to repo root) to the Deployment YAML containing this image
+# tag_pattern:  optional regex to filter which tags count as "real" releases —
+#               important because most registries also publish tags like "latest",
+#               "nightly", "amd64-develop", etc. that you don't want picked up.
+#               Leave empty ("") to consider all tags (not recommended).
+
+# - name: sonarr
+#   image: linuxserver/sonarr
+#   manifest: apps/media/sonarr/workloads/deployment.yaml
+#   image_path: .spec.template.spec.containers[0].image
+#   field_type: combined
+#   tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+-ls[0-9]+$'
+
+# - name: radarr
+#   image: linuxserver/radarr
+#   manifest: apps/arr-stack/radarr/workloads/deployment.yaml
+#   tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+-ls[0-9]+$'
+
+- name: uptime-kuma
+  image: louislam/uptime-kuma
+  manifest: apps/monitoring/uptime-kuma/deployment.yaml
+  image_path: .spec.template.spec.containers[0].image
+  field_type: combined
+  tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+
+# Add more apps here as you migrate them. To find the right tag_pattern,
+# check the image's tag list on Docker Hub / GHCR first — every project
+# names its tags a bit differently.
