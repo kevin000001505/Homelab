@@ -13,12 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build matrix of app indices
+      - name: Build matrix of app names
         id: set-matrix
         run: |
-          count=$(yq -r 'length' scripts/apps.yaml)
-          indices=$(seq 0 $((count - 1)) | jq -R . | jq -s -c .)
-          echo "matrix=${indices}" >> "$GITHUB_OUTPUT"
+          names=$(yq -r -o=json '[.[].name]' -I=0 scripts/apps.yaml)
+          echo "matrix=${names}" >> "$GITHUB_OUTPUT"
 
   check:
     needs: discover
@@ -26,7 +25,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        index: ${{ fromJson(needs.discover.outputs.matrix) }}
+        app: ${{ fromJson(needs.discover.outputs.matrix) }}
+    name: check (${{ matrix.app }})
     steps:
       - uses: actions/checkout@v4
 
@@ -37,7 +37,7 @@ jobs:
         id: check
         run: |
           chmod +x scripts/check-one-app.sh
-          scripts/check-one-app.sh scripts/apps.yaml "${{ matrix.index }}"
+          scripts/check-one-app.sh scripts/apps.yaml "${{ matrix.app }}"
 
       - name: Open PR if a newer version was found
         if: steps.check.outputs.changed == 'true'

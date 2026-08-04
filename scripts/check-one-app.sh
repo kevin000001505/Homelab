@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 #
-# check-one-app.sh <config> <index>
+# check-one-app.sh <config> <app-name>
 #
-# Checks a SINGLE app (by its index in apps.yaml) against its upstream
-# registry. If the latest tag matching tag_pattern is newer than what's
-# currently pinned in the manifest, patches the manifest in place.
+# Checks a SINGLE app (by its "name" field in apps.yaml) against its
+# upstream registry. If the latest tag matching tag_pattern is newer
+# than what's currently pinned in the manifest, patches the manifest
+# in place.
 #
 # This script only proposes changes to a file on disk — it never touches
 # the cluster. Deployment happens via ArgoCD after the resulting PR is
@@ -20,14 +21,26 @@
 
 set -euo pipefail
 
-CONFIG="${1:?usage: check-one-app.sh <config> <index>}"
-IDX="${2:?usage: check-one-app.sh <config> <index>}"
+CONFIG="${1:?usage: check-one-app.sh <config> <app-name>}"
+APP_NAME="${2:?usage: check-one-app.sh <config> <app-name>}"
 
 emit() {
   if [ -n "${GITHUB_OUTPUT:-}" ]; then
     echo "$1" >> "$GITHUB_OUTPUT"
   fi
 }
+
+# Resolve the app's index by matching its "name" field, so every
+# downstream .[$IDX].xxx lookup below stays unchanged. If no app in
+# apps.yaml has this name, IDX comes back empty and we fail clearly
+# instead of silently querying index "null".
+IDX=$(yq -r "(.[] | select(.name == \"${APP_NAME}\") | key) // \"\"" "$CONFIG")
+
+if [ -z "$IDX" ]; then
+  echo "!! No app named '${APP_NAME}' found in ${CONFIG}"
+  emit "changed=false"
+  exit 1
+fi
 
 name=$(yq -r ".[$IDX].name" "$CONFIG")
 image=$(yq -r ".[$IDX].image" "$CONFIG")
