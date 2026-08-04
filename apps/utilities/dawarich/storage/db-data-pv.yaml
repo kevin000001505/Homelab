@@ -8,7 +8,7 @@ spec:
     path: /appdata/dawarich/db-data
     type: DirectoryOrCreate
   capacity:
-    storage: 10Gi
+    storage: 5Gi
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
