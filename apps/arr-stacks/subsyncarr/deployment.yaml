@@ -25,14 +25,12 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: subsyncarr-data
-
         - name: media
           persistentVolumeClaim:
             claimName: media-nfs
-
       containers:
         - name: subsyncarr
-          image: mrorbitman/subsyncarr:latest
+          image: mrorbitman/subsyncarr:1.4.0
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
@@ -46,7 +44,6 @@ spec:
             - name: media
               mountPath: /tv
               subPath: data/media/tv
-
           resources:
             requests:
               memory: "128Mi"
