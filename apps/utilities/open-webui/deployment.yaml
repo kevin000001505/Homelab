@@ -27,7 +27,7 @@ spec:
             claimName: open-webui-data
       containers:
         - name: open-webui
-          image: ghcr.io/open-webui/open-webui:main
+          image: ghcr.io/open-webui/open-webui:0.11.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
