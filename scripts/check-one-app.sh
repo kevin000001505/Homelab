@@ -55,7 +55,18 @@ fi
 # for this app (image_path). Plain Deployments and Helm values.yaml
 # files use different keys, so the path is per-app config rather than
 # hardcoded here.
-full_image=$(yq -r "${image_path}" "$manifest")
+#
+# combined (plain k8s manifest) files can contain multiple --- separated
+# documents (e.g. Namespace + Deployment in one file). yq would otherwise
+# evaluate the path against every document and print one result per doc,
+# joined by "---". select(kind == "Deployment") isolates the one we want.
+# tag_only (Helm values.yaml) files have no "kind:" field at all, so that
+# filter doesn't apply there — values.yaml is always a single document.
+if [ "$field_type" = "combined" ]; then
+  full_image=$(yq -r 'select(.kind == "Deployment") | '"${image_path}" "$manifest")
+else
+  full_image=$(yq -r "${image_path}" "$manifest")
+fi
 
 if [ -z "$full_image" ] || [ "$full_image" = "null" ]; then
   echo "!! Could not find ${image_path} in ${manifest}"
@@ -128,11 +139,10 @@ fi
 
 # Patch the manifest in place via the same yq path used to read it.
 # This preserves YAML formatting/comments better than a text-based sed
-# replace. field_type (declared in apps.yaml) tells us the write shape —
-# not inferred from the current value, since an unpinned "repo" with no
-# colon at all would otherwise be misread as a tag-only field.
+# replace. field_type also decides whether we need the same
+# select(kind == "Deployment") isolation used above when reading.
 if [ "$field_type" = "combined" ]; then
-  yq -i "${image_path} = \"${image}:${latest}\"" "$manifest"
+  yq -i "(select(.kind == \"Deployment\") | ${image_path}) = \"${image}:${latest}\"" "$manifest"
 else
   yq -i "${image_path} = \"${latest}\"" "$manifest"
 fi
