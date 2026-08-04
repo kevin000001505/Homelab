@@ -34,6 +34,20 @@
   field_type: combined
   tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
 
+- name: bentopdf
+  image: bentopdf/bentopdf
+  manifest: apps/utilities/bentopdf/deployment.yaml
+  image_path: .spec.template.spec.containers[0].image
+  field_type: combined
+  tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+
+- name: trek
+  image: mauriceboe/trek
+  manifest: apps/utilities/trek/deployment.yaml
+  image_path: .spec.template.spec.containers[0].image
+  field_type: combined
+  tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+
 # Add more apps here as you migrate them. To find the right tag_pattern,
 # check the image's tag list on Docker Hub / GHCR first — every project
 # names its tags a bit differently.
