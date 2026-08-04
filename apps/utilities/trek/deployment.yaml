@@ -26,19 +26,16 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 64Mi
-
       containers:
         - name: trek
-          image: mauriceboe/trek:latest
+          image: mauriceboe/trek:3.4.1
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
               protocol: TCP
-
           envFrom:
             - secretRef:
                 name: trek-secrets
-
           volumeMounts:
             - name: data
               mountPath: /app/data
@@ -48,7 +45,6 @@ spec:
               subPath: uploads
             - name: tmp
               mountPath: /tmp
-
           livenessProbe:
             httpGet:
               path: /api/health
@@ -57,7 +53,6 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 10
             failureThreshold: 3
-
           resources:
             requests:
               cpu: 100m
@@ -65,7 +60,6 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
-
 ---
 apiVersion: v1
 kind: Service
