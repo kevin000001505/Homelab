@@ -35,7 +35,7 @@ spec:
             claimName: uptime-kuma-data # Must match PVC name
       containers:
         - name: uptime-kuma
-          image: louislam/uptime-kuma:2.5.0
+          image: louislam/uptime-kuma:2.5.3
           imagePullPolicy: IfNotPresent # Always, Never, IfNotPresent
           ports: # Documents which ports the container uses. Does NOT actually expose or open ports.
             - containerPort: 3001
