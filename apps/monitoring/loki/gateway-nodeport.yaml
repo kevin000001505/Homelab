@@ -1,0 +1,24 @@
+---
+# Exposes the Loki gateway on a node port so log shippers OUTSIDE the
+# cluster (e.g. npmplus promtail) can push logs to it via a node IP.
+# WARNING: the Loki gateway has no auth — keep this on a trusted LAN only.
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-gateway-nodeport
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: gateway
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/component: gateway
+    app.kubernetes.io/instance: loki
+    app.kubernetes.io/name: loki
+  ports:
+    - name: http
+      port: 80
+      targetPort: http-metrics
+      nodePort: 30100
+      protocol: TCP
