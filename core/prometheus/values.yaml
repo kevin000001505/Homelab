@@ -4547,41 +4547,15 @@ prometheus:
     ## The scrape configuration example below will find master nodes, provided they have the name .*mst.*, relabel the
     ## port to 2379 and allow etcd scraping provided it is running on all Kubernetes master nodes
     ##
-    additionalScrapeConfigs:
-      - job_name: homelab-vms
-        metrics_path: /metrics
-        static_configs:
-          - targets:
-              - 192.168.1.218:9100
-            labels:
-              hostname: Media
-              type: vm
-          - targets:
-              - 192.168.1.163:9100
-            labels:
-              hostname: AI
-              type: vm
-          - targets:
-              - 192.168.1.5:9100
-            labels:
-              hostname: Proxmox-Host
-
-      - job_name: proxmox
-        metrics_path: /pve
-        params:
-          module: [default]
-          cluster: ["1"]
-          node: ["1"]
-        static_configs:
-          - targets:
-              - 192.168.1.200:9221
-        relabel_configs:
-          - source_labels: [__address__]
-            target_label: __param_target
-          - source_labels: [__param_target]
-            target_label: instance
-          - target_label: __address__
-            replacement: 192.168.1.200:9221
+    additionalScrapeConfigs: []
+    ## NOTE: the homelab-vms and proxmox external scrape jobs were migrated out of
+    ## this file into standalone ScrapeConfig CRDs so values.yaml stays maintainable
+    ## as more VMs/nodes are added. They now live (GitOps-synced by the `monitoring`
+    ## ArgoCD app) at:
+    ##   apps/monitoring/prometheus/scrapeconfigs-proxmox.yaml
+    ##     - node-exporter-guests  (job=node-exporter-guests)  # guest VM node_exporters
+    ##     - proxmox-node          (job=proxmox-node)          # Proxmox host node_exporter
+    ##     - proxmox-ve            (job=proxmox-ve)            # pve-exporter cluster stats
     # - job_name: kube-etcd
     #   kubernetes_sd_configs:
     #     - role: node
