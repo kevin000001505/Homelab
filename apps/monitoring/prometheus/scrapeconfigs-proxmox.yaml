@@ -1,0 +1,99 @@
+---
+# Proxmox host node-exporter
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: proxmox-node
+  namespace: monitoring
+  labels:
+    release: prometheus   # matches Prometheus CR scrapeConfigSelector
+spec:
+  staticConfigs:
+    - targets:
+        - 192.168.1.5:9100
+      labels:
+        hostname: Proxmox-Host
+  relabelings:
+    # Preserve the original job label so existing dashboards keep working.
+    - targetLabel: job
+      replacement: proxmox-node
+---
+# Proxmox VE (pve-exporter) — scraped via the exporter at 192.168.1.200:9221
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: proxmox-ve
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  metricsPath: /pve
+  params:
+    module:
+      - default
+  staticConfigs:
+    - targets:
+        - "192.168.1.5"
+  relabelings:
+    - targetLabel: job
+      replacement: proxmox-ve
+    - sourceLabels: [__address__]
+      targetLabel: __param_target
+    - sourceLabels: [__param_target]
+      targetLabel: instance
+    - targetLabel: __address__
+      replacement: "192.168.1.200:9221"
+  metricRelabelings:
+    - sourceLabels: [id]
+      regex: "lxc/104"
+      targetLabel: name
+      replacement: "Komodo"
+    - sourceLabels: [id]
+      regex: "lxc/108"
+      targetLabel: name
+      replacement: "Adguard"
+    - sourceLabels: [id]
+      regex: "lxc/109"
+      targetLabel: name
+      replacement: "Cloudflare_ddns"
+    - sourceLabels: [id]
+      regex: "lxc/111"
+      targetLabel: name
+      replacement: "Uptime_Kuma"
+    - sourceLabels: [id]
+      regex: "lxc/113"
+      targetLabel: name
+      replacement: "Homepage"
+    - sourceLabels: [id]
+      regex: "lxc/115"
+      targetLabel: name
+      replacement: "NPM"
+---
+# Guest VM node-exporters
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: node-exporter-guests
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  staticConfigs:
+    - targets:
+        - "192.168.1.218:9100"
+      labels:
+        hostname: "Media"
+        type: "vm"
+    - targets:
+        - "192.168.1.204:9100"
+      labels:
+        hostname: "Docker-Apps"
+        type: "vm"
+    - targets:
+        - "192.168.1.163:9100"
+      labels:
+        hostname: "AI"
+        type: "vm"
+  relabelings:
+    - targetLabel: job
+      replacement: node-exporter-guests
