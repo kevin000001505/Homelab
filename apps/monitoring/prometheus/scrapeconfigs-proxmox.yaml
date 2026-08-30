@@ -34,6 +34,7 @@ spec:
   staticConfigs:
     - targets:
         - "192.168.1.5"
+        - "192.168.1.6"
   relabelings:
     - targetLabel: job
       replacement: proxmox-ve
@@ -68,6 +69,10 @@ spec:
       regex: "lxc/115"
       targetLabel: name
       replacement: "NPM"
+    - sourceLabels: [id]
+      regex: "lxc/122"
+      targetLabel: name
+      replacement: "NPMPlus"
 ---
 # Guest VM node-exporters
 apiVersion: monitoring.coreos.com/v1alpha1
