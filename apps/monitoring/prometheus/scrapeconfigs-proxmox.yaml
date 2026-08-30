@@ -32,9 +32,11 @@ spec:
     module:
       - default
   staticConfigs:
+    # Single target only: the pve module returns CLUSTER-WIDE data regardless of
+    # which node it queries, so adding a second node just duplicates every pve_*
+    # series under a different `instance` label with no new information.
     - targets:
         - "192.168.1.5"
-        - "192.168.1.6"
   relabelings:
     - targetLabel: job
       replacement: proxmox-ve
