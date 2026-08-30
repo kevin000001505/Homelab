@@ -20,5 +20,13 @@ spec:
     server: https://192.168.1.15:6443
     namespace: monitoring
   syncPolicy:
+    automated:
+      enabled: true
+      prune: false
+      selfHeal: false
     syncOptions:
       - CreateNamespace=true
+      # kube-prometheus-stack CRDs are too large for client-side apply
+      # (last-applied-configuration annotation exceeds the 256KB limit).
+      # Server-side apply avoids that annotation and lets CRD syncs succeed.
+      - ServerSideApply=true
