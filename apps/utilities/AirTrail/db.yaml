@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airtrail-db
+  namespace: utilities
+  labels:
+    app: airtrail-db
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airtrail-db
+      tier: database
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: airtrail-db
+        tier: database
+    spec:
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: airtrail-db-pvc
+      containers:
+        - name: airtrail-db
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: airtrail-secrets
+                  key: DB_DATABASE_NAME
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: airtrail-secrets
+                  key: DB_USERNAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: airtrail-secrets
+                  key: DB_PASSWORD
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airtrail-db
+  namespace: utilities
+spec:
+  selector:
+    app: airtrail-db
+  ports:
+    - port: 5432
+      targetPort: 5432

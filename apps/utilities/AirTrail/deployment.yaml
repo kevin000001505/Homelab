@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airtrail
+  namespace: utilities
+  labels:
+    app: airtrail
+    tier: utilities
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airtrail
+      tier: utilities
+  template:
+    metadata:
+      labels:
+        app: airtrail
+        tier: utilities
+    spec:
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: airtrail-uploads-pvc
+      initContainers:
+        # Equivalent of compose's depends_on: db (service_healthy)
+        - name: wait-for-db
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until pg_isready -h airtrail-db -p 5432; do echo waiting for db; sleep 2; done"]
+      containers:
+        - name: airtrail
+          image: johly/airtrail:v3.13.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: airtrail-secrets
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+          livenessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airtrail
+  namespace: utilities
+spec:
+  selector:
+    app: airtrail
+  ports:
+    - port: 80
+      targetPort: 3000

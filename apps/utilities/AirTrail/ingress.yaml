@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: airtrail
+  namespace: utilities
+  labels:
+    app: airtrail
+    tier: utilities
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure # web for HTTP, websecure for HTTPS. Can use both by separating with comma: web,websecure
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  rules:
+    - host: airtrail.lan.shiba-toast.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: airtrail
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - airtrail.lan.shiba-toast.com
+      secretName: airtrail-tls
