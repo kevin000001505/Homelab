@@ -1,21 +1,50 @@
 # argocd/apps/utilities.yaml
+#
+# One ArgoCD Application per folder under apps/utilities/ (trek, dawarich, ...),
+# all deployed into the shared "utilities" namespace. Adding a new folder
+# creates a new Application automatically.
 apiVersion: argoproj.io/v1alpha1
-kind: Application
+kind: ApplicationSet
 metadata:
   name: utilities
   namespace: argocd
 spec:
-  project: default
-  source:
-    repoURL: https://github.com/kevin000001505/Homelab.git
-    targetRevision: HEAD
-    path: apps/utilities
-    directory:
-      recurse: true
-  destination:
-    server: https://192.168.1.15:6443
-    namespace: utilities
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/kevin000001505/Homelab.git
+        revision: HEAD
+        directories:
+          - path: apps/utilities/*
+          # Helm values / other-namespace manifests, managed elsewhere
+          - path: apps/utilities/ghost
+            exclude: true
+          - path: apps/utilities/ghost-yaml
+            exclude: true
+          - path: apps/utilities/n8n
+            exclude: true
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+    # Deleting/renaming a folder removes its Application but leaves the
+    # workloads running (protects data on local-path PVCs like open-webui)
+    preserveResourcesOnDeletion: true
+  template:
+    metadata:
+      name: '{{ .path.basename | lower }}'
+      labels:
+        group: utilities
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/kevin000001505/Homelab.git
+        targetRevision: HEAD
+        path: '{{ .path.path }}'
+        directory:
+          recurse: true
+      destination:
+        server: https://192.168.1.15:6443
+        namespace: utilities
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
