@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: actual-budget
+  namespace: utilities
+  labels:
+    app: actual-budget
+    tier: utilities
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: actual-budget
+      tier: utilities
+  strategy:
+    # Single SQLite-backed instance on a RWO volume; never run two at once
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: actual-budget
+        tier: utilities
+    spec:
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: actual-budget-pvc
+      containers:
+        - name: actual-budget
+          image: actualbudget/actual-server:26.10.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5006
+              protocol: TCP
+          # Optional settings: https://actualbudget.org/docs/config/
+          # env:
+          #   - name: ACTUAL_UPLOAD_FILE_SYNC_SIZE_LIMIT_MB
+          #     value: "20"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5006
+            initialDelaySeconds: 20
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: actual-budget
+  namespace: utilities
+spec:
+  selector:
+    app: actual-budget
+  ports:
+    - port: 80
+      targetPort: 5006
