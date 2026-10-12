@@ -44,7 +44,7 @@ spec:
               value: America/New_York
             # dryRun only logs what it would change. Remove it once the guesses look right.
             - name: FEATURES
-              value: '["dryRun", "classifyOnStartup", "syncAccountsBeforeClassify"]'
+              value: '["classifyOnStartup", "syncAccountsBeforeClassify"]'
             # Local llama-swap / llama-server (OpenAI-compatible chat completions)
             - name: LLM_PROVIDER
               value: openai
