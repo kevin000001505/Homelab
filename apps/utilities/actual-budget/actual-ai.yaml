@@ -1,0 +1,77 @@
+# actual-ai: LLM categorisation of uncategorised transactions in Actual Budget.
+# https://github.com/sakowicz/actual-ai
+#
+# Talks to the actual-budget Service in-cluster; no ingress needed.
+# Credentials live in actual-ai-secret (secret.yaml, gitignored, apply manually).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: actual-ai
+  namespace: utilities
+  labels:
+    app: actual-ai
+    tier: utilities
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: actual-ai
+      tier: utilities
+  strategy:
+    # Two instances would classify the same transactions twice
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: actual-ai
+        tier: utilities
+    spec:
+      volumes:
+        # @actual-app/api keeps a local copy of the budget in /tmp/actual-ai
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: actual-ai
+          # Keep in step with actual-server: its @actual-app/api must match the server version
+          image: sakowicz/actual-ai:3.0.2
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ACTUAL_SERVER_URL
+              value: http://actual-budget.utilities.svc.cluster.local
+            - name: CLASSIFICATION_SCHEDULE_CRON
+              value: "0 */4 * * *"
+            - name: TZ
+              value: America/New_York
+            # dryRun only logs what it would change. Remove it once the guesses look right.
+            - name: FEATURES
+              value: '["dryRun", "classifyOnStartup", "syncAccountsBeforeClassify"]'
+            # Local llama-swap / llama-server (OpenAI-compatible chat completions)
+            - name: LLM_PROVIDER
+              value: openai
+            - name: OPENAI_BASE_URL
+              value: http://192.168.1.163:8080/v1
+            - name: OPENAI_MODEL
+              value: Qwen3.6-35B-A3B-GGUF-Q3-K-UD-Q3_K_S
+            # The SDK refuses an empty key; llama-server ignores it
+            - name: OPENAI_API_KEY
+              value: sk-no-key-required
+            # Leaves room for llama-swap to load the model on a cold start
+            - name: LLM_TIMEOUT_MS
+              value: "300000"
+            - name: ACTUAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: actual-ai-secret
+                  key: ACTUAL_PASSWORD
+            - name: ACTUAL_BUDGET_ID
+              valueFrom:
+                secretKeyRef:
+                  name: actual-ai-secret
+                  key: ACTUAL_BUDGET_ID
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
