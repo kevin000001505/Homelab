@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blackbox-exporter-config
+  namespace: monitoring
+  labels:
+    app: blackbox-exporter
+data:
+  blackbox.yml: |
+    modules:
+      # Any 2xx/3xx counts as up. Redirects are followed so login pages
+      # (authentik, *arr) still report the final page's status.
+      http_2xx:
+        prober: http
+        timeout: 10s
+        http:
+          preferred_ip_protocol: ip4
+          follow_redirects: true
+          valid_status_codes: []  # defaults to 2xx
+          fail_if_not_ssl: false
+
+      # Services behind auth return 401/403 without credentials — that still
+      # proves the proxy and the backend are answering.
+      http_up_any:
+        prober: http
+        timeout: 10s
+        http:
+          preferred_ip_protocol: ip4
+          follow_redirects: true
+          valid_status_codes: [200, 204, 301, 302, 307, 308, 401, 403]
+
+      # Raw TCP connect — used for the WAN port-forward check that failed on
+      # 2026-10-18 (router refused 108.31.83.77:443 while every server was up).
+      tcp_connect:
+        prober: tcp
+        timeout: 5s
+        tcp:
+          preferred_ip_protocol: ip4
+
+      icmp:
+        prober: icmp
+        timeout: 5s
+        icmp:
+          preferred_ip_protocol: ip4
+
+      dns_google:
+        prober: dns
+        timeout: 5s
+        dns:
+          preferred_ip_protocol: ip4
+          transport_protocol: udp
+          query_name: google.com
+          query_type: A
+          valid_rcodes: [NOERROR]

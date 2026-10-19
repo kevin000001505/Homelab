@@ -1,0 +1,100 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: homelab
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: homelab.availability
+      rules:
+        - alert: WanPortForwardDown
+          expr: probe_success{job="blackbox-tcp"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.name }} refuses connections"
+            description: >-
+              TCP connect to the public IP failed. Every public site is down
+              even if the servers are healthy. Check router port forwarding.
+        - alert: ServiceProbeFailing
+          expr: probe_success{job="blackbox-http"} == 0
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.name }} is not responding"
+            description: "HTTP probe of {{ $labels.instance }} has failed for 3 minutes."
+        - alert: HostUnreachable
+          expr: probe_success{job="blackbox-icmp"} == 0
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.name }} ({{ $labels.instance }}) does not answer ping"
+        - alert: InternetLatencyHigh
+          expr: avg_over_time(probe_icmp_duration_seconds{job="blackbox-icmp",group="internet",phase="rtt"}[5m]) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Ping to {{ $labels.name }} averages {{ $value | humanizeDuration }}"
+        - alert: DnsResolutionFailing
+          expr: probe_success{job="blackbox-dns"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "DNS resolver {{ $labels.name }} is failing"
+        - alert: TlsCertExpiringSoon
+          expr: (probe_ssl_earliest_cert_expiry{job="blackbox-http"} - time()) / 86400 < 2
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "TLS cert for {{ $labels.name }} expires in {{ $value | humanize }} days"
+            description: Let's Encrypt short-lived certs renew every few days; this means renewal is stuck.
+        - alert: ScrapeTargetDown
+          expr: up{job=~"node-exporter-guests|proxmox-node|proxmox-ve|crowdsec"} == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.job }} target {{ $labels.instance }} is down"
+
+    - name: homelab.security
+      rules:
+        - alert: CrowdsecDown
+          expr: absent(up{job="crowdsec"} == 1)
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: CrowdSec metrics are missing — the NPMPlus bouncer may be failing open
+        - alert: CrowdsecBanSpike
+          expr: sum(increase(cs_bucket_overflowed_total[15m])) > 20
+          labels:
+            severity: info
+          annotations:
+            summary: "CrowdSec triggered {{ $value | humanize }} scenarios in 15m"
+
+    - name: homelab.resources
+      rules:
+        - alert: HostDiskAlmostFull
+          expr: |
+            (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"}
+                 / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"}) > 0.9
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.instance }} {{ $labels.mountpoint }} is {{ $value | humanizePercentage }} full"
+        - alert: SmartDeviceUnhealthy
+          # Only physical disks: QEMU virtual disks in VMs report healthy=0 with no SMART.
+          expr: smartmon_device_smart_healthy == 0 and on (instance, disk) smartmon_device_smart_available == 1
+          labels:
+            severity: critical
+          annotations:
+            summary: "SMART reports {{ $labels.device }} on {{ $labels.instance }} as failing"

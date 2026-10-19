@@ -1,0 +1,201 @@
+---
+# Public URLs. Cluster DNS resolves these to the WAN IP, so the probe hairpins
+# through the router's port forward — the path that broke on 2026-10-18.
+# The URL list lives in the gitignored Secret blackbox-targets
+# (blackbox-targets.secret.yaml), mounted into Prometheus.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: blackbox-http-external
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  scrapeInterval: 30s
+  scrapeTimeout: 15s
+  metricsPath: /probe
+  params:
+    module: [http_up_any]
+  fileSDConfigs:
+    - files:
+        - /etc/prometheus/secrets/blackbox-targets/http-external.yaml
+      refreshInterval: 5m
+  relabelings:
+    - sourceLabels: [__address__]
+      targetLabel: __param_target
+    - sourceLabels: [__param_target]
+      targetLabel: instance
+    - sourceLabels: [__param_target]
+      regex: "(?:https?://)?([^:/]+).*"
+      targetLabel: name
+    - targetLabel: __address__
+      replacement: blackbox-exporter.monitoring.svc:9115
+    - targetLabel: job
+      replacement: blackbox-http
+---
+# LAN-only services behind Traefik (k3s) and NPMPlus.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: blackbox-http-internal
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  scrapeInterval: 30s
+  scrapeTimeout: 15s
+  metricsPath: /probe
+  params:
+    module: [http_up_any]
+  staticConfigs:
+    - labels:
+        group: internal
+        proxy: traefik
+      targets:
+        - https://grafana.lan.shiba-toast.com
+        - https://argocd.lan.shiba-toast.com
+        - https://homepage.lan.shiba-toast.com
+        - https://uptime.lan.shiba-toast.com
+        - https://speedtest.lan.shiba-toast.com
+        - https://glance.lan.shiba-toast.com
+        - https://open-webui.lan.shiba-toast.com
+        - https://airtrail.lan.shiba-toast.com
+        - https://bentopdf.lan.shiba-toast.com
+        - https://ghost.lan.shiba-toast.com
+        - https://subsyncarr.lan.shiba-toast.com
+    - labels:
+        group: internal
+        proxy: npmplus
+      targets:
+        - https://auth.lan.shiba-toast.com
+        - https://sonarr.lan.shiba-toast.com
+        - https://radarr.lan.shiba-toast.com
+        - https://prowlarr.lan.shiba-toast.com
+        - https://qbittorrent.lan.shiba-toast.com
+        - https://qui.lan.shiba-toast.com
+        - https://komodo.lan.shiba-toast.com
+    - labels:
+        group: backend
+      targets:
+        - http://192.168.1.218:8096/health  # Jellyfin direct, bypassing NPMPlus
+  relabelings:
+    - sourceLabels: [__address__]
+      targetLabel: __param_target
+    - sourceLabels: [__param_target]
+      targetLabel: instance
+    - sourceLabels: [__param_target]
+      regex: "(?:https?://)?([^:/]+).*"
+      targetLabel: name
+    - targetLabel: __address__
+      replacement: blackbox-exporter.monitoring.svc:9115
+    - targetLabel: job
+      replacement: blackbox-http
+---
+# Ping latency to LAN hosts and the internet.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: blackbox-icmp
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  scrapeInterval: 15s
+  scrapeTimeout: 10s
+  metricsPath: /probe
+  params:
+    module: [icmp]
+  staticConfigs:
+    - labels: {group: lan, name: Router}
+      targets: [192.168.1.1]
+    - labels: {group: lan, name: Proxmox}
+      targets: [192.168.1.5]
+    - labels: {group: lan, name: k3s-cp}
+      targets: [192.168.1.15]
+    - labels: {group: lan, name: k3s-worker}
+      targets: [192.168.1.20]
+    - labels: {group: lan, name: NPMPlus}
+      targets: [192.168.1.176]
+    - labels: {group: lan, name: Media}
+      targets: [192.168.1.218]
+    - labels: {group: lan, name: NAS}
+      targets: [192.168.1.203]
+    - labels: {group: lan, name: AdGuard}
+      targets: [192.168.1.247]
+    - labels: {group: lan, name: AI}
+      targets: [192.168.1.163]
+    - labels: {group: lan, name: Docker-Apps}
+      targets: [192.168.1.204]
+    - labels: {group: internet, name: Cloudflare}
+      targets: [1.1.1.1]
+    - labels: {group: internet, name: Google}
+      targets: [8.8.8.8]
+  relabelings:
+    - sourceLabels: [__address__]
+      targetLabel: __param_target
+    - sourceLabels: [__param_target]
+      targetLabel: instance
+    - targetLabel: __address__
+      replacement: blackbox-exporter.monitoring.svc:9115
+    - targetLabel: job
+      replacement: blackbox-icmp
+---
+# WAN port forward check: TCP connect to the public IP on 80/443.
+# Targets come from the gitignored Secret blackbox-targets.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: blackbox-tcp-wan
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  scrapeInterval: 15s
+  scrapeTimeout: 10s
+  metricsPath: /probe
+  params:
+    module: [tcp_connect]
+  fileSDConfigs:
+    - files:
+        - /etc/prometheus/secrets/blackbox-targets/tcp-wan.yaml
+      refreshInterval: 5m
+  relabelings:
+    - sourceLabels: [__address__]
+      targetLabel: __param_target
+    - sourceLabels: [__param_target]
+      targetLabel: instance
+    - targetLabel: __address__
+      replacement: blackbox-exporter.monitoring.svc:9115
+    - targetLabel: job
+      replacement: blackbox-tcp
+---
+# DNS resolution time: AdGuard vs public resolvers.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: blackbox-dns
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  scrapeInterval: 30s
+  scrapeTimeout: 10s
+  metricsPath: /probe
+  params:
+    module: [dns_google]
+  staticConfigs:
+    - labels: {name: AdGuard}
+      targets: ["192.168.1.247:53"]
+    - labels: {name: Cloudflare}
+      targets: ["1.1.1.1:53"]
+    - labels: {name: Google}
+      targets: ["8.8.8.8:53"]
+  relabelings:
+    - sourceLabels: [__address__]
+      targetLabel: __param_target
+    - sourceLabels: [__param_target]
+      targetLabel: instance
+    - targetLabel: __address__
+      replacement: blackbox-exporter.monitoring.svc:9115
+    - targetLabel: job
+      replacement: blackbox-dns
