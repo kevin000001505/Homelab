@@ -4268,7 +4268,10 @@ prometheus:
     ## reflected in the running Pods. To change the secrets mounted into the Prometheus Pods, the object must be deleted and recreated
     ## with the new list of secrets.
     ##
-    secrets: []
+    secrets:
+      # Public blackbox probe targets (apps/monitoring/prometheus/blackbox-targets.secret.yaml,
+      # gitignored — apply by hand before syncing this app)
+      - blackbox-targets
 
     ## ConfigMaps is a list of ConfigMaps in the same namespace as the Prometheus object, which shall be mounted into the Prometheus Pods.
     ## The ConfigMaps are mounted into /etc/prometheus/configmaps/.

@@ -1,0 +1,76 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  # On the /opt/promtail bind mount so a container recreate doesn't re-ship the whole log
+  filename: /etc/promtail/positions.yaml
+
+clients:
+  # k3s Loki via loki-gateway-nodeport (apps/monitoring/loki/gateway-nodeport.yaml)
+  - url: http://192.168.1.15:30100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: nginx
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          host: npmplus
+          __path__: /var/log/nginx/*.log
+    pipeline_stages:
+      - regex:
+          expression: '^\[(?P<timestamp>[^\]]+)\] (?P<vhost>\S+) (?P<client_ip>\S+) (?P<response_time>\S+) "(?P<method>\S+) (?P<path>\S+) (?P<protocol>[^"]+)" (?P<status>\d+) (?P<bytes_sent>\d+) (?P<bytes_received>\d+) (?P<referer>\S+) (?P<user_agent>.+)$'
+      # Use the request time from the log line, not the time promtail read it
+      - timestamp:
+          source: timestamp
+          format: '02/Jan/2006:15:04:05 -0700'
+      - geoip:
+          db: /geoip/GeoLite2-City.mmdb
+          source: client_ip
+          db_type: city
+      - labeldrop:
+          - filename
+          - service_name
+      # Low-cardinality fields become stream labels.
+      - labels:
+          vhost:
+          status:
+          method:
+          geoip_country_name:
+      # Per-request geo data goes into structured metadata (queryable, not indexed),
+      # so city/lat/long don't create a new Loki stream per client.
+      - structured_metadata:
+          geoip_city_name:
+          geoip_location_latitude:
+          geoip_location_longitude:
+
+  # CrowdSec container logs — only ban/decision events, not the per-request LAPI noise.
+  - job_name: crowdsec
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 30s
+        filters:
+          - name: name
+            values: [crowdsec]
+    relabel_configs:
+      - target_label: job
+        replacement: crowdsec
+      - target_label: host
+        replacement: npmplus
+    pipeline_stages:
+      - drop:
+          expression: 'module=lapi'
+      - logfmt:
+          mapping:
+            level:
+            msg:
+      - labels:
+          level:
+      # "(localhost/crowdsec) <scenario> by ip <ip> (<CC>/<ASN>) : 4h ban on Ip <ip>"
+      - regex:
+          source: msg
+          expression: '^\((?P<machine>[^)]+)\) (?P<scenario>\S+) by ip (?P<ip>\S+) \((?P<country>[A-Z]{2})?/?(?P<asn>\d+)?\) : (?P<duration>\S+) (?P<action>\S+) on'
+      - labels:
+          action:

@@ -1,0 +1,20 @@
+---
+# CrowdSec agent + LAPI on the NPMPlus LXC. Port 6060 is published in
+# /root/npmplus/compose.yml on that host.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: crowdsec
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  scrapeInterval: 30s
+  staticConfigs:
+    - targets:
+        - 192.168.1.176:6060
+      labels:
+        hostname: NPMPlus
+  relabelings:
+    - targetLabel: job
+      replacement: crowdsec
