@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: actual-budget-anita-pvc
+  namespace: utilities
+  labels:
+    app: actual-budget-anita
+    tier: storage
+spec:
+  storageClassName: ""
+  accessModes:
+    - ReadWriteOnce
+  volumeName: actual-budget-anita-pv
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 10Gi
