@@ -57,7 +57,21 @@
 
 - name: actual-budget
   image: actualbudget/actual-server
-  manifest: apps/utilities/actual-budget/deployment.yaml
+  manifest: apps/utilities/actual-budget/kevin/deployment.yaml
+  image_path: .spec.template.spec.containers[0].image
+  field_type: combined
+  tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+
+- name: actual-budget-anita
+  image: actualbudget/actual-server
+  manifest: apps/utilities/actual-budget/anita/deployment.yaml
+  image_path: .spec.template.spec.containers[0].image
+  field_type: combined
+  tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+
+- name: actual-ai
+  image: sakowicz/actual-ai
+  manifest: apps/utilities/actual-budget/kevin/actual-ai.yaml
   image_path: .spec.template.spec.containers[0].image
   field_type: combined
   tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
