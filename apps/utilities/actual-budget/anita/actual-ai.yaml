@@ -43,9 +43,10 @@ spec:
               value: "0 2-22/4 * * *"
             - name: TZ
               value: America/New_York
-            # dryRun only logs what it would change. Remove it once the guesses look right.
+            # suggestNewCategories creates new categories (and category groups) when none fit.
+            # Add "dryRun" to only log changes instead of writing them to the budget.
             - name: FEATURES
-              value: '["classifyOnStartup", "syncAccountsBeforeClassify"]'
+              value: '["classifyOnStartup", "syncAccountsBeforeClassify", "suggestNewCategories"]'
             # Local llama-swap / llama-server (OpenAI-compatible chat completions)
             - name: LLM_PROVIDER
               value: openai
