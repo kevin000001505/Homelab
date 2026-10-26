@@ -1,5 +1,3 @@
-<img src="./docs/architecture.svg" alt="Homelab Architecture" width="800">
-
 # Homelab — GitOps-Managed Kubernetes Cluster
 
 A bare-metal Kubernetes cluster running on **Talos Linux**, fully declarative and reconciled by **ArgoCD**. Every workload, network policy, certificate, and dashboard in this cluster is defined in this repository — there is no `kubectl apply` in the deployment path and no SSH access to the nodes.
@@ -145,14 +143,18 @@ Workloads on `ReadWriteOnce` volumes use `strategy: Recreate` rather than `Rolli
 - `node-type` labels (`general` / `gpu`) with `nodeSelector` pinning, so log/metric collectors stay on the general worker and future transcoding workloads land on the GPU node.
 - Image tags pinned to explicit versions (`louislam/uptime-kuma:2.4.0`) — no `:latest` in the deployment path.
 
+### Keeping pinned images current
+
+Pinning versions only works if something bumps them. A weekly GitHub Actions job (`.github/workflows/check-image-updates.yml`) reads `scripts/apps.yaml`, checks each image's registry for a newer tag matching that app's `tag_pattern`, and opens an `auto/update-<app>` pull request. Merging the PR is the deploy — ArgoCD picks it up from `main`.
+
 ---
 
 ## Services
 
 | Namespace | Services |
 |---|---|
-| `monitoring` | kube-prometheus-stack, Loki, Promtail, Uptime Kuma, Speedtest Tracker (+MariaDB), Homepage, Tracearr |
-| `utilities` | Ghost (blog), Dawarich (location history — app/db/redis/sidekiq/photon), Open WebUI, Glance, BentoPDF, Trek |
+| `monitoring` | kube-prometheus-stack, Loki, Promtail, Blackbox Exporter, Grafana dashboards, Uptime Kuma, Speedtest Tracker (+MariaDB), Homepage, Tracearr |
+| `utilities` | Ghost (blog), Dawarich (location history — app/db/redis/sidekiq/photon), Actual Budget (+ actual-ai, one instance per user), AirTrail, Open WebUI, Glance, BentoPDF, Trek |
 | `arr-stacks` | Subsyncarr |
 | `argocd` | ArgoCD |
 
@@ -186,7 +188,9 @@ Documented deliberately — these are the next items of work, not oversights I h
 │   └── namespaces/
 ├── apps/                             # workloads, grouped by namespace
 ├── argocd/apps/                      # ArgoCD Application definitions
-└── docs/                             # architecture diagram
+├── hosts/                            # config for hosts outside the cluster (e.g. NPMPlus log/metric shipping)
+├── scripts/                          # image-update checker + Grafana dashboard generator
+└── .github/workflows/                # weekly image-update PRs
 ```
 
 ---
