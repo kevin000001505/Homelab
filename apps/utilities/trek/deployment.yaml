@@ -28,7 +28,7 @@ spec:
             sizeLimit: 64Mi
       containers:
         - name: trek
-          image: mauriceboe/trek:4.3.4
+          image: mauriceboe/trek:5.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
