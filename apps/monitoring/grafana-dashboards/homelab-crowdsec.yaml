@@ -10,7 +10,7 @@ data:
   homelab-crowdsec.json: |
     {
       "uid": "homelab-crowdsec",
-      "title": "Homelab \u00b7 CrowdSec",
+      "title": "Homelab \u00b7 Security",
       "tags": [
         "homelab",
         "security"
@@ -71,7 +71,7 @@ data:
       "panels": [
         {
           "type": "row",
-          "title": "Decisions",
+          "title": "Are we under attack? (selected time range)",
           "collapsed": false,
           "panels": [],
           "gridPos": {
@@ -84,159 +84,8 @@ data:
         },
         {
           "type": "stat",
-          "title": "CrowdSec agent",
-          "description": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "up{job=\"crowdsec\"}",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "mappings": [
-                {
-                  "type": "value",
-                  "options": {
-                    "0": {
-                      "text": "DOWN",
-                      "color": "red",
-                      "index": 0
-                    },
-                    "1": {
-                      "text": "UP",
-                      "color": "green",
-                      "index": 1
-                    }
-                  }
-                }
-              ],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "red",
-                    "value": null
-                  },
-                  {
-                    "color": "green",
-                    "value": 1
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "gridPos": {
-            "x": 0,
-            "y": 1,
-            "w": 6,
-            "h": 5
-          },
-          "id": 2
-        },
-        {
-          "type": "stat",
-          "title": "Local bans (active)",
-          "description": "Bans from your own traffic that are still in effect.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum(cs_active_decisions{origin!~\"CAPI|lists\"}) or vector(0)",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 10
-                  },
-                  {
-                    "color": "red",
-                    "value": 50
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "gridPos": {
-            "x": 6,
-            "y": 1,
-            "w": 6,
-            "h": 5
-          },
-          "id": 3
-        },
-        {
-          "type": "stat",
-          "title": "IPs banned in time range",
-          "description": "",
+          "title": "Attack attempts",
+          "description": "Internet requests NPMPlus dropped (444) or that went for exploit paths.",
           "datasource": {
             "type": "loki",
             "uid": "${loki}"
@@ -247,7 +96,7 @@ data:
                 "type": "loki",
                 "uid": "${loki}"
               },
-              "expr": "count(sum by (ip) (count_over_time({job=\"crowdsec\"} |= \" on Ip \" | logfmt | line_format \"{{.msg}}\" | regexp `^\\((?P<machine>[^)]+)\\) (?P<scenario>\\S+) by ip (?P<ip>\\S+) \\((?P<country>[A-Z]*)/?(?P<asn>\\d*)\\) : (?P<duration>\\S+) (?P<ban>\\S+) on` [$__range])))",
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range]))",
               "legendFormat": "",
               "refId": "A",
               "queryType": "instant"
@@ -257,7 +106,127 @@ data:
             "defaults": {
               "custom": {},
               "noValue": "0",
-              "decimals": 0
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "orange"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 1,
+            "w": 6,
+            "h": 4
+          },
+          "id": 2
+        },
+        {
+          "type": "stat",
+          "title": "Scanner probes",
+          "description": "Requests for /.env, /.git, wp-admin, phpmyadmin, path traversal ... Your apps never serve these, so every hit is a bot looking for a hole.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range]))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "orange"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 6,
+            "y": 1,
+            "w": 6,
+            "h": 4
+          },
+          "id": 3
+        },
+        {
+          "type": "stat",
+          "title": "Dropped by NPMPlus (444)",
+          "description": "NPMPlus closed the connection without answering: the request used your bare IP, an unknown hostname, or a LAN-only site from outside.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=\"444\"} [$__range]))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "orange"
+              }
             },
             "overrides": []
           },
@@ -283,14 +252,130 @@ data:
             "x": 12,
             "y": 1,
             "w": 6,
-            "h": 5
+            "h": 4
           },
           "id": 4
         },
         {
           "type": "stat",
-          "title": "Community blocklist size",
-          "description": "",
+          "title": "Failed logins",
+          "description": "401/403 answers to internet clients (Plex excluded, it 401s every app poll). A burst from one IP is someone guessing passwords.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=~\"401|403\", vhost!=\"plex.shiba-toast.com\"} [$__range]))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "orange"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 18,
+            "y": 1,
+            "w": 6,
+            "h": 4
+          },
+          "id": 5
+        },
+        {
+          "type": "stat",
+          "title": "Attacker IPs",
+          "description": "Distinct IPs behind the attack attempts.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "count(sum by (client_ip) (count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range])))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "orange"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 5,
+            "w": 6,
+            "h": 4
+          },
+          "id": 6
+        },
+        {
+          "type": "stat",
+          "title": "WAF blocks",
+          "description": "Requests CrowdSec's AppSec (WAF) rules blocked.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -301,7 +386,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(cs_active_decisions{origin=~\"CAPI|lists\"})",
+              "expr": "sum(increase(cs_appsec_block_total[$__range])) or vector(0)",
               "legendFormat": "",
               "refId": "A",
               "instant": true,
@@ -311,9 +396,125 @@ data:
           "fieldConfig": {
             "defaults": {
               "custom": {},
+              "decimals": 0,
               "color": {
                 "mode": "fixed",
-                "fixedColor": "blue"
+                "fixedColor": "red"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "gridPos": {
+            "x": 6,
+            "y": 5,
+            "w": 6,
+            "h": 4
+          },
+          "id": 7
+        },
+        {
+          "type": "stat",
+          "title": "IPs banned",
+          "description": "Distinct IPs CrowdSec banned from your own traffic.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "count(sum by (ip) (count_over_time({job=\"crowdsec\"} |= \" on Ip \" | logfmt | line_format \"{{.msg}}\" | regexp `^\\((?P<machine>[^)]+)\\) (?P<scenario>\\S+) by ip (?P<ip>\\S+) \\((?P<country>[A-Z]*)/?(?P<asn>\\d*)\\) : (?P<duration>\\S+) (?P<ban>\\S+) on` [$__range])))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "red"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 12,
+            "y": 5,
+            "w": 6,
+            "h": 4
+          },
+          "id": 8
+        },
+        {
+          "type": "stat",
+          "title": "Banned IPs turned away",
+          "description": "NPMPlus asked CrowdSec about a client and got a ban back, so it refused the request. Proof the bans are doing their job.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(increase(cs_lapi_decisions_ok_total[$__range])) or vector(0)",
+              "legendFormat": "",
+              "refId": "A",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "green"
               }
             },
             "overrides": []
@@ -337,16 +538,627 @@ data:
           },
           "gridPos": {
             "x": 18,
-            "y": 1,
+            "y": 5,
             "w": 6,
-            "h": 5
+            "h": 4
           },
-          "id": 5
+          "id": 9
+        },
+        {
+          "type": "timeseries",
+          "title": "Attack attempts per hour",
+          "description": "Spikes are someone scanning or brute-forcing you. Steady low bars are the internet's usual background noise.",
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Mixed --"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [1h]))",
+              "legendFormat": "scanner probes",
+              "refId": "A",
+              "queryType": "range"
+            },
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=\"444\"} [1h]))",
+              "legendFormat": "dropped (444)",
+              "refId": "B",
+              "queryType": "range"
+            },
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=~\"401|403\", vhost!=\"plex.shiba-toast.com\"} [1h]))",
+              "legendFormat": "failed logins",
+              "refId": "C",
+              "queryType": "range"
+            },
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"crowdsec\"} |= \" on Ip \" | logfmt | line_format \"{{.msg}}\" | regexp `^\\((?P<machine>[^)]+)\\) (?P<scenario>\\S+) by ip (?P<ip>\\S+) \\((?P<country>[A-Z]*)/?(?P<asn>\\d*)\\) : (?P<duration>\\S+) (?P<ban>\\S+) on` [1h]))",
+              "legendFormat": "bans",
+              "refId": "D",
+              "queryType": "range"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(increase(cs_appsec_block_total[1h]))",
+              "legendFormat": "WAF blocks",
+              "refId": "E",
+              "instant": false,
+              "range": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 80,
+                "showPoints": "never",
+                "spanNulls": true,
+                "axisSoftMin": 0,
+                "drawStyle": "bars",
+                "stacking": {
+                  "mode": "normal"
+                }
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "1h",
+          "gridPos": {
+            "x": 0,
+            "y": 9,
+            "w": 24,
+            "h": 8
+          },
+          "id": 10
+        },
+        {
+          "type": "table",
+          "title": "Top attacking IPs",
+          "description": "Click an IP to see everything it did.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "topk(20, sum by (client_ip, geoip_country_name) (count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range])))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Attempts"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "gauge",
+                      "mode": "basic",
+                      "valueDisplayMode": "text"
+                    }
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "orange"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "IP"
+                },
+                "properties": [
+                  {
+                    "id": "links",
+                    "value": [
+                      {
+                        "title": "Everything ${__value.raw} did",
+                        "url": "/d/homelab-ip?var-ip=${__value.raw}&from=now-7d&to=now"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "md",
+            "footer": {
+              "show": false
+            }
+          },
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "mode": "columns"
+              }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "client_ip": "IP",
+                  "geoip_country_name": "Country",
+                  "Value #A": "Attempts",
+                  "Value": "Attempts"
+                },
+                "excludeByName": {},
+                "indexByName": {
+                  "client_ip": 0,
+                  "geoip_country_name": 1
+                }
+              }
+            },
+            {
+              "id": "filterFieldsByName",
+              "options": {
+                "include": {
+                  "names": [
+                    "IP",
+                    "Country",
+                    "Attempts"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Attempts",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 17,
+            "w": 12,
+            "h": 10
+          },
+          "id": 11
+        },
+        {
+          "type": "table",
+          "title": "What they went for",
+          "description": "Hosts and paths of the attack attempts. 444 rows on a bare IP are bots sweeping the internet, not aimed at you.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "topk(20, sum by (vhost, path) (count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range])))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Attempts"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "gauge",
+                      "mode": "basic",
+                      "valueDisplayMode": "text"
+                    }
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "orange"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "md",
+            "footer": {
+              "show": false
+            }
+          },
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "mode": "columns"
+              }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "vhost": "Host",
+                  "path": "Path",
+                  "Value #A": "Attempts",
+                  "Value": "Attempts"
+                },
+                "excludeByName": {},
+                "indexByName": {
+                  "vhost": 0,
+                  "path": 1
+                }
+              }
+            },
+            {
+              "id": "filterFieldsByName",
+              "options": {
+                "include": {
+                  "names": [
+                    "Host",
+                    "Path",
+                    "Attempts"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Attempts",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "interval": "1m",
+          "gridPos": {
+            "x": 12,
+            "y": 17,
+            "w": 12,
+            "h": 10
+          },
+          "id": 12
+        },
+        {
+          "type": "table",
+          "title": "Failed logins by IP",
+          "description": "Click an IP to see everything it did.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "topk(20, sum by (client_ip, vhost, geoip_country_name) (count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=~\"401|403\", vhost!=\"plex.shiba-toast.com\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` [$__range])))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Failures"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "gauge",
+                      "mode": "basic",
+                      "valueDisplayMode": "text"
+                    }
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "orange"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "IP"
+                },
+                "properties": [
+                  {
+                    "id": "links",
+                    "value": [
+                      {
+                        "title": "Everything ${__value.raw} did",
+                        "url": "/d/homelab-ip?var-ip=${__value.raw}&from=now-7d&to=now"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "md",
+            "footer": {
+              "show": false
+            }
+          },
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "mode": "columns"
+              }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "client_ip": "IP",
+                  "vhost": "Host",
+                  "geoip_country_name": "Country",
+                  "Value #A": "Failures",
+                  "Value": "Failures"
+                },
+                "excludeByName": {},
+                "indexByName": {
+                  "client_ip": 0,
+                  "vhost": 1,
+                  "geoip_country_name": 2
+                }
+              }
+            },
+            {
+              "id": "filterFieldsByName",
+              "options": {
+                "include": {
+                  "names": [
+                    "IP",
+                    "Host",
+                    "Country",
+                    "Failures"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Failures",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 27,
+            "w": 12,
+            "h": 10
+          },
+          "id": 13
+        },
+        {
+          "type": "table",
+          "title": "Attack attempts by country",
+          "description": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "topk(15, sum by (geoip_country_name) (count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range])))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Attempts"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "gauge",
+                      "mode": "basic",
+                      "valueDisplayMode": "text"
+                    }
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "blue"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "md",
+            "footer": {
+              "show": false
+            }
+          },
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "mode": "columns"
+              }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "Value #A": "Attempts",
+                  "Value": "Attempts",
+                  "geoip_country_name": "Country"
+                },
+                "excludeByName": {},
+                "indexByName": {}
+              }
+            },
+            {
+              "id": "filterFieldsByName",
+              "options": {
+                "include": {
+                  "names": [
+                    "Country",
+                    "Attempts"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Attempts",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "interval": "1m",
+          "gridPos": {
+            "x": 12,
+            "y": 27,
+            "w": 12,
+            "h": 10
+          },
+          "id": 14
+        },
+        {
+          "type": "row",
+          "title": "Bans",
+          "collapsed": false,
+          "panels": [],
+          "gridPos": {
+            "x": 0,
+            "y": 37,
+            "w": 24,
+            "h": 1
+          },
+          "id": 15
         },
         {
           "type": "table",
           "title": "Ban events",
-          "description": "Each ban CrowdSec issued in the selected time range (bans last 4h). For the live list run `cscli decisions list` in the crowdsec container.",
+          "description": "Each ban CrowdSec issued in the selected time range (bans last 4h). Click an IP to see everything it did. For the live list run `cscli decisions list` in the crowdsec container.",
           "datasource": {
             "type": "loki",
             "uid": "${loki}"
@@ -368,7 +1180,25 @@ data:
               "custom": {},
               "noValue": "No bans in this time range"
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "IP"
+                },
+                "properties": [
+                  {
+                    "id": "links",
+                    "value": [
+                      {
+                        "title": "Everything ${__value.raw} did",
+                        "url": "/d/homelab-ip?var-ip=${__value.raw}&from=now-7d&to=now"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
           },
           "options": {
             "showHeader": true,
@@ -430,11 +1260,11 @@ data:
           "interval": "1m",
           "gridPos": {
             "x": 0,
-            "y": 6,
+            "y": 38,
             "w": 24,
-            "h": 12
+            "h": 10
           },
-          "id": 6
+          "id": 16
         },
         {
           "type": "table",
@@ -542,113 +1372,11 @@ data:
           "interval": "1m",
           "gridPos": {
             "x": 0,
-            "y": 18,
+            "y": 48,
             "w": 12,
-            "h": 10
+            "h": 9
           },
-          "id": 7
-        },
-        {
-          "type": "table",
-          "title": "Active local bans by scenario",
-          "description": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum by (reason) (cs_active_decisions{origin!~\"CAPI|lists\"})",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false,
-              "format": "table"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {}
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Bans"
-                },
-                "properties": [
-                  {
-                    "id": "custom.cellOptions",
-                    "value": {
-                      "type": "gauge",
-                      "mode": "basic",
-                      "valueDisplayMode": "text"
-                    }
-                  },
-                  {
-                    "id": "color",
-                    "value": {
-                      "mode": "fixed",
-                      "fixedColor": "orange"
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          "options": {
-            "showHeader": true,
-            "cellHeight": "md",
-            "footer": {
-              "show": false
-            }
-          },
-          "transformations": [
-            {
-              "id": "organize",
-              "options": {
-                "renameByName": {
-                  "reason": "Scenario",
-                  "Value": "Bans"
-                },
-                "excludeByName": {},
-                "indexByName": {}
-              }
-            },
-            {
-              "id": "filterFieldsByName",
-              "options": {
-                "include": {
-                  "names": [
-                    "Scenario",
-                    "Bans"
-                  ]
-                }
-              }
-            },
-            {
-              "id": "sortBy",
-              "options": {
-                "sort": [
-                  {
-                    "field": "Bans",
-                    "desc": true
-                  }
-                ]
-              }
-            }
-          ],
-          "gridPos": {
-            "x": 12,
-            "y": 18,
-            "w": 12,
-            "h": 10
-          },
-          "id": 8
+          "id": 17
         },
         {
           "type": "timeseries",
@@ -701,370 +1429,738 @@ data:
             }
           },
           "gridPos": {
-            "x": 0,
-            "y": 28,
-            "w": 12,
-            "h": 10
-          },
-          "id": 9
-        },
-        {
-          "type": "piechart",
-          "title": "Community blocklist by reason",
-          "description": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum by (reason) (cs_active_decisions{origin=~\"CAPI|lists\"})",
-              "legendFormat": "{{reason}}",
-              "refId": "A",
-              "instant": true,
-              "range": false
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {}
-            },
-            "overrides": []
-          },
-          "options": {
-            "pieType": "donut",
-            "legend": {
-              "displayMode": "table",
-              "placement": "right",
-              "values": [
-                "value",
-                "percent"
-              ]
-            },
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            }
-          },
-          "gridPos": {
             "x": 12,
-            "y": 28,
+            "y": 48,
             "w": 12,
-            "h": 10
+            "h": 9
           },
-          "id": 10
+          "id": 18
         },
         {
           "type": "row",
-          "title": "Detection engine",
-          "collapsed": false,
-          "panels": [],
-          "gridPos": {
-            "x": 0,
-            "y": 38,
-            "w": 24,
-            "h": 1
-          },
-          "id": 11
-        },
-        {
-          "type": "timeseries",
-          "title": "Log lines read per second",
-          "description": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
+          "title": "CrowdSec engine",
+          "collapsed": true,
+          "panels": [
             {
+              "type": "stat",
+              "title": "CrowdSec agent",
+              "description": "",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum by (source) (rate(cs_filesource_hits_total[$__rate_interval]))",
-              "legendFormat": "{{source}}",
-              "refId": "A",
-              "instant": false,
-              "range": true
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 8,
-                "showPoints": "never",
-                "spanNulls": true,
-                "axisSoftMin": 0
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom",
-              "calcs": []
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "gridPos": {
-            "x": 0,
-            "y": 39,
-            "w": 12,
-            "h": 9
-          },
-          "id": 12
-        },
-        {
-          "type": "timeseries",
-          "title": "Log lines parsed vs unparsed",
-          "description": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum(rate(cs_parser_hits_ok_total[$__rate_interval]))",
-              "legendFormat": "parsed",
-              "refId": "A",
-              "instant": false,
-              "range": true
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum(rate(cs_parser_hits_ko_total[$__rate_interval]))",
-              "legendFormat": "unparsed",
-              "refId": "B",
-              "instant": false,
-              "range": true
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 8,
-                "showPoints": "never",
-                "spanNulls": true,
-                "axisSoftMin": 0
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom",
-              "calcs": []
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "gridPos": {
-            "x": 12,
-            "y": 39,
-            "w": 12,
-            "h": 9
-          },
-          "id": 13
-        },
-        {
-          "type": "timeseries",
-          "title": "AppSec (WAF) requests inspected vs blocked",
-          "description": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum(rate(cs_appsec_reqs_total[$__rate_interval]))",
-              "legendFormat": "inspected",
-              "refId": "A",
-              "instant": false,
-              "range": true
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum(rate(cs_appsec_block_total[$__rate_interval]))",
-              "legendFormat": "blocked",
-              "refId": "B",
-              "instant": false,
-              "range": true
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 8,
-                "showPoints": "never",
-                "spanNulls": true,
-                "axisSoftMin": 0
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom",
-              "calcs": []
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "gridPos": {
-            "x": 0,
-            "y": 48,
-            "w": 12,
-            "h": 9
-          },
-          "id": 14
-        },
-        {
-          "type": "timeseries",
-          "title": "Bouncer lookups per second",
-          "description": "NPMPlus asks CrowdSec about each client IP.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum by (bouncer) (rate(cs_lapi_bouncer_requests_total[$__rate_interval]))",
-              "legendFormat": "{{bouncer}}",
-              "refId": "A",
-              "instant": false,
-              "range": true
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 8,
-                "showPoints": "never",
-                "spanNulls": true,
-                "axisSoftMin": 0
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom",
-              "calcs": []
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "gridPos": {
-            "x": 12,
-            "y": 48,
-            "w": 12,
-            "h": 9
-          },
-          "id": 15
-        },
-        {
-          "type": "timeseries",
-          "title": "Local API p95 latency by route",
-          "description": "/v1/decisions is on the request path: NPMPlus waits for it before serving a new client IP.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "histogram_quantile(0.95, sum by (le, endpoint) (rate(cs_lapi_request_duration_seconds_bucket[$__rate_interval])))",
-              "legendFormat": "{{endpoint}}",
-              "refId": "A",
-              "instant": false,
-              "range": true
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 8,
-                "showPoints": "never",
-                "spanNulls": true,
-                "axisSoftMin": 0
-              },
-              "unit": "s"
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "right",
-              "width": 520,
-              "calcs": [
-                "mean",
-                "lastNotNull"
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "up{job=\"crowdsec\"}",
+                  "legendFormat": "",
+                  "refId": "A",
+                  "instant": true,
+                  "range": false
+                }
               ],
-              "sortBy": "Mean",
-              "sortDesc": true
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "mappings": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "0": {
+                          "text": "DOWN",
+                          "color": "red",
+                          "index": 0
+                        },
+                        "1": {
+                          "text": "UP",
+                          "color": "green",
+                          "index": 1
+                        }
+                      }
+                    }
+                  ],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": null
+                      },
+                      {
+                        "color": "green",
+                        "value": 1
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "justifyMode": "center",
+                "wideLayout": true,
+                "text": {
+                  "titleSize": 14
+                }
+              },
+              "gridPos": {
+                "x": 0,
+                "y": 58,
+                "w": 6,
+                "h": 5
+              },
+              "id": 20
             },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
+            {
+              "type": "stat",
+              "title": "Local bans (active)",
+              "description": "Bans from your own traffic that are still in effect.",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "sum(cs_active_decisions{origin!~\"CAPI|lists\"}) or vector(0)",
+                  "legendFormat": "",
+                  "refId": "A",
+                  "instant": true,
+                  "range": false
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "orange",
+                        "value": 10
+                      },
+                      {
+                        "color": "red",
+                        "value": 50
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "justifyMode": "center",
+                "wideLayout": true,
+                "text": {
+                  "titleSize": 14
+                }
+              },
+              "gridPos": {
+                "x": 6,
+                "y": 58,
+                "w": 6,
+                "h": 5
+              },
+              "id": 21
+            },
+            {
+              "type": "stat",
+              "title": "Community blocklist size",
+              "description": "",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "sum(cs_active_decisions{origin=~\"CAPI|lists\"})",
+                  "legendFormat": "",
+                  "refId": "A",
+                  "instant": true,
+                  "range": false
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "color": {
+                    "mode": "fixed",
+                    "fixedColor": "blue"
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "justifyMode": "center",
+                "wideLayout": true,
+                "text": {
+                  "titleSize": 14
+                }
+              },
+              "gridPos": {
+                "x": 12,
+                "y": 58,
+                "w": 6,
+                "h": 5
+              },
+              "id": 22
+            },
+            {
+              "type": "stat",
+              "title": "AppSec requests inspected",
+              "description": "",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "sum(increase(cs_appsec_reqs_total[$__range]))",
+                  "legendFormat": "",
+                  "refId": "A",
+                  "instant": true,
+                  "range": false
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "unit": "short",
+                  "decimals": 0,
+                  "color": {
+                    "mode": "fixed",
+                    "fixedColor": "blue"
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "justifyMode": "center",
+                "wideLayout": true,
+                "text": {
+                  "titleSize": 14
+                }
+              },
+              "gridPos": {
+                "x": 18,
+                "y": 58,
+                "w": 6,
+                "h": 5
+              },
+              "id": 23
+            },
+            {
+              "type": "table",
+              "title": "Active local bans by scenario",
+              "description": "",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "sum by (reason) (cs_active_decisions{origin!~\"CAPI|lists\"})",
+                  "legendFormat": "",
+                  "refId": "A",
+                  "instant": true,
+                  "range": false,
+                  "format": "table"
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {}
+                },
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Bans"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "gauge",
+                          "mode": "basic",
+                          "valueDisplayMode": "text"
+                        }
+                      },
+                      {
+                        "id": "color",
+                        "value": {
+                          "mode": "fixed",
+                          "fixedColor": "orange"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              "options": {
+                "showHeader": true,
+                "cellHeight": "md",
+                "footer": {
+                  "show": false
+                }
+              },
+              "transformations": [
+                {
+                  "id": "organize",
+                  "options": {
+                    "renameByName": {
+                      "reason": "Scenario",
+                      "Value": "Bans"
+                    },
+                    "excludeByName": {},
+                    "indexByName": {}
+                  }
+                },
+                {
+                  "id": "filterFieldsByName",
+                  "options": {
+                    "include": {
+                      "names": [
+                        "Scenario",
+                        "Bans"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "sortBy",
+                  "options": {
+                    "sort": [
+                      {
+                        "field": "Bans",
+                        "desc": true
+                      }
+                    ]
+                  }
+                }
+              ],
+              "gridPos": {
+                "x": 0,
+                "y": 63,
+                "w": 12,
+                "h": 10
+              },
+              "id": 24
+            },
+            {
+              "type": "piechart",
+              "title": "Community blocklist by reason",
+              "description": "",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "sum by (reason) (cs_active_decisions{origin=~\"CAPI|lists\"})",
+                  "legendFormat": "{{reason}}",
+                  "refId": "A",
+                  "instant": true,
+                  "range": false
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {}
+                },
+                "overrides": []
+              },
+              "options": {
+                "pieType": "donut",
+                "legend": {
+                  "displayMode": "table",
+                  "placement": "right",
+                  "values": [
+                    "value",
+                    "percent"
+                  ]
+                },
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                }
+              },
+              "gridPos": {
+                "x": 12,
+                "y": 63,
+                "w": 12,
+                "h": 10
+              },
+              "id": 25
+            },
+            {
+              "type": "timeseries",
+              "title": "Log lines read per second",
+              "description": "",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "sum by (source) (rate(cs_filesource_hits_total[$__rate_interval]))",
+                  "legendFormat": "{{source}}",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "lineWidth": 2,
+                    "fillOpacity": 8,
+                    "showPoints": "never",
+                    "spanNulls": true,
+                    "axisSoftMin": 0
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "calcs": []
+                },
+                "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+                }
+              },
+              "gridPos": {
+                "x": 0,
+                "y": 73,
+                "w": 12,
+                "h": 9
+              },
+              "id": 26
+            },
+            {
+              "type": "timeseries",
+              "title": "Log lines parsed vs unparsed",
+              "description": "",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "sum(rate(cs_parser_hits_ok_total[$__rate_interval]))",
+                  "legendFormat": "parsed",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "sum(rate(cs_parser_hits_ko_total[$__rate_interval]))",
+                  "legendFormat": "unparsed",
+                  "refId": "B",
+                  "instant": false,
+                  "range": true
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "lineWidth": 2,
+                    "fillOpacity": 8,
+                    "showPoints": "never",
+                    "spanNulls": true,
+                    "axisSoftMin": 0
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "calcs": []
+                },
+                "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+                }
+              },
+              "gridPos": {
+                "x": 12,
+                "y": 73,
+                "w": 12,
+                "h": 9
+              },
+              "id": 27
+            },
+            {
+              "type": "timeseries",
+              "title": "AppSec (WAF) requests inspected vs blocked",
+              "description": "",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "sum(rate(cs_appsec_reqs_total[$__rate_interval]))",
+                  "legendFormat": "inspected",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "sum(rate(cs_appsec_block_total[$__rate_interval]))",
+                  "legendFormat": "blocked",
+                  "refId": "B",
+                  "instant": false,
+                  "range": true
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "lineWidth": 2,
+                    "fillOpacity": 8,
+                    "showPoints": "never",
+                    "spanNulls": true,
+                    "axisSoftMin": 0
+                  },
+                  "unit": "reqps"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "calcs": []
+                },
+                "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+                }
+              },
+              "gridPos": {
+                "x": 0,
+                "y": 82,
+                "w": 12,
+                "h": 9
+              },
+              "id": 28
+            },
+            {
+              "type": "timeseries",
+              "title": "Bouncer lookups per second",
+              "description": "NPMPlus asks CrowdSec about each client IP.",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "sum by (bouncer) (rate(cs_lapi_bouncer_requests_total[$__rate_interval]))",
+                  "legendFormat": "{{bouncer}}",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "lineWidth": 2,
+                    "fillOpacity": 8,
+                    "showPoints": "never",
+                    "spanNulls": true,
+                    "axisSoftMin": 0
+                  },
+                  "unit": "reqps"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "calcs": []
+                },
+                "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+                }
+              },
+              "gridPos": {
+                "x": 12,
+                "y": 82,
+                "w": 12,
+                "h": 9
+              },
+              "id": 29
+            },
+            {
+              "type": "timeseries",
+              "title": "Local API p95 latency by route",
+              "description": "/v1/decisions is on the request path: NPMPlus waits for it before serving a new client IP.",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "expr": "histogram_quantile(0.95, sum by (le, endpoint) (rate(cs_lapi_request_duration_seconds_bucket[$__rate_interval])))",
+                  "legendFormat": "{{endpoint}}",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "lineWidth": 2,
+                    "fillOpacity": 8,
+                    "showPoints": "never",
+                    "spanNulls": true,
+                    "axisSoftMin": 0
+                  },
+                  "unit": "s"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "displayMode": "table",
+                  "placement": "right",
+                  "width": 520,
+                  "calcs": [
+                    "mean",
+                    "lastNotNull"
+                  ],
+                  "sortBy": "Mean",
+                  "sortDesc": true
+                },
+                "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+                }
+              },
+              "gridPos": {
+                "x": 0,
+                "y": 91,
+                "w": 24,
+                "h": 9
+              },
+              "id": 30
             }
-          },
+          ],
           "gridPos": {
             "x": 0,
             "y": 57,
             "w": 24,
-            "h": 9
+            "h": 1
           },
-          "id": 16
+          "id": 19
         }
       ]
     }
