@@ -111,7 +111,13 @@ data:
                     "value": 3
                   }
                 ]
-              }
+              },
+              "links": [
+                {
+                  "title": "Open firing alerts",
+                  "url": "/alerting/list?search=state:firing"
+                }
+              ]
             },
             "overrides": []
           },
@@ -142,8 +148,8 @@ data:
         },
         {
           "type": "stat",
-          "title": "Services down",
-          "description": "Public and internal sites whose HTTP probe fails right now.",
+          "title": "Public sites down",
+          "description": "Sites reachable from the internet whose HTTP probe fails right now.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -154,7 +160,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "count(probe_success{job=\"blackbox-http\"} == 0) or vector(0)",
+              "expr": "count(probe_success{job=\"blackbox-http\",group=\"external\"} == 0) or vector(0)",
               "legendFormat": "",
               "refId": "A",
               "instant": true,
@@ -181,7 +187,13 @@ data:
                     "value": 1
                   }
                 ]
-              }
+              },
+              "links": [
+                {
+                  "title": "Show details",
+                  "url": "/d/homelab-network?${__url_time_range}&viewPanel=panel-13"
+                }
+              ]
             },
             "overrides": []
           },
@@ -209,76 +221,6 @@ data:
             "h": 4
           },
           "id": 2
-        },
-        {
-          "type": "stat",
-          "title": "LAN hosts unreachable",
-          "description": "Hosts on the LAN that do not answer ping.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "count(probe_success{job=\"blackbox-icmp\",group=\"lan\"} == 0) or vector(0)",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "decimals": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 1
-                  },
-                  {
-                    "color": "red",
-                    "value": 1
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "gridPos": {
-            "x": 12,
-            "y": 0,
-            "w": 6,
-            "h": 4
-          },
-          "id": 3
         },
         {
           "type": "stat",
@@ -333,7 +275,13 @@ data:
                     "value": 1
                   }
                 ]
-              }
+              },
+              "links": [
+                {
+                  "title": "Show details",
+                  "url": "/d/homelab-network?${__url_time_range}&viewPanel=panel-2"
+                }
+              ]
             },
             "overrides": []
           },
@@ -355,212 +303,12 @@ data:
             }
           },
           "gridPos": {
-            "x": 18,
+            "x": 12,
             "y": 0,
             "w": 6,
             "h": 4
           },
-          "id": 4
-        },
-        {
-          "type": "stat",
-          "title": "Requests (24h)",
-          "description": "Requests NPMPlus served. It fronts every site, k3s apps included.",
-          "datasource": {
-            "type": "loki",
-            "uid": "${loki}"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${loki}"
-              },
-              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", status=~\".+\"} [24h]))",
-              "legendFormat": "",
-              "refId": "A",
-              "queryType": "instant"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "unit": "short",
-              "decimals": 0,
-              "color": {
-                "mode": "fixed",
-                "fixedColor": "blue"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "interval": "1m",
-          "gridPos": {
-            "x": 0,
-            "y": 4,
-            "w": 6,
-            "h": 4
-          },
-          "id": 5
-        },
-        {
-          "type": "stat",
-          "title": "Server errors (24h)",
-          "description": "5xx responses from NPMPlus. Requests per hour below shows when; Reverse Proxy & Requests shows which host.",
-          "datasource": {
-            "type": "loki",
-            "uid": "${loki}"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${loki}"
-              },
-              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", status=~\"5..\"} [24h]))",
-              "legendFormat": "",
-              "refId": "A",
-              "queryType": "instant"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "noValue": "0",
-              "decimals": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 1
-                  },
-                  {
-                    "color": "red",
-                    "value": 50
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "interval": "1m",
-          "gridPos": {
-            "x": 6,
-            "y": 4,
-            "w": 6,
-            "h": 4
-          },
-          "id": 6
-        },
-        {
-          "type": "stat",
-          "title": "IPs banned (24h)",
-          "description": "Distinct IPs CrowdSec banned from your own traffic. A jump means someone is probing you; the CrowdSec dashboard has who and why.",
-          "datasource": {
-            "type": "loki",
-            "uid": "${loki}"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${loki}"
-              },
-              "expr": "count(sum by (ip) (count_over_time({job=\"crowdsec\"} |= \" on Ip \" | logfmt | line_format \"{{.msg}}\" | regexp `^\\((?P<machine>[^)]+)\\) (?P<scenario>\\S+) by ip (?P<ip>\\S+) \\((?P<country>[A-Z]*)/?(?P<asn>\\d*)\\) : (?P<duration>\\S+) (?P<ban>\\S+) on` [24h])))",
-              "legendFormat": "",
-              "refId": "A",
-              "queryType": "instant"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "noValue": "0",
-              "decimals": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 20
-                  },
-                  {
-                    "color": "red",
-                    "value": 100
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "interval": "1m",
-          "gridPos": {
-            "x": 12,
-            "y": 4,
-            "w": 6,
-            "h": 4
-          },
-          "id": 7
+          "id": 3
         },
         {
           "type": "stat",
@@ -603,7 +351,13 @@ data:
                     "value": 0.1
                   }
                 ]
-              }
+              },
+              "links": [
+                {
+                  "title": "Show details",
+                  "url": "/d/homelab-network?${__url_time_range}&viewPanel=panel-5"
+                }
+              ]
             },
             "overrides": []
           },
@@ -624,6 +378,301 @@ data:
               "titleSize": 14
             }
           },
+          "gridPos": {
+            "x": 18,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "id": 4
+        },
+        {
+          "type": "stat",
+          "title": "Public requests (24h)",
+          "description": "Requests NPMPlus served for the public sites.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", vhost=~\"[a-z0-9-]+\\\\.shiba-toast\\\\.com\"} [24h]))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "unit": "short",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "blue"
+              },
+              "links": [
+                {
+                  "title": "Show details",
+                  "url": "/d/homelab-proxy?${__url_time_range}"
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "id": 5
+        },
+        {
+          "type": "stat",
+          "title": "Public server errors (24h)",
+          "description": "5xx responses from the public sites.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", vhost=~\"[a-z0-9-]+\\\\.shiba-toast\\\\.com\", status=~\"5..\"} [24h]))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 1
+                  },
+                  {
+                    "color": "red",
+                    "value": 50
+                  }
+                ]
+              },
+              "links": [
+                {
+                  "title": "Show details",
+                  "url": "/d/homelab-proxy?${__url_time_range}&viewPanel=panel-10"
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 6,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "id": 6
+        },
+        {
+          "type": "stat",
+          "title": "Attack attempts (24h)",
+          "description": "Requests from the internet that NPMPlus dropped (444: bare IP or a LAN-only host) or that went for exploit paths (/.env, /.git, wp-admin ...). A few hundred a day is normal internet background noise.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [24h]))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 500
+                  },
+                  {
+                    "color": "red",
+                    "value": 2000
+                  }
+                ]
+              },
+              "links": [
+                {
+                  "title": "Show details",
+                  "url": "/d/homelab-crowdsec?${__url_time_range}"
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 12,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "id": 7
+        },
+        {
+          "type": "stat",
+          "title": "IPs banned (24h)",
+          "description": "Distinct IPs CrowdSec banned from your own traffic. Click for which IPs and why.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "count(sum by (ip) (count_over_time({job=\"crowdsec\"} |= \" on Ip \" | logfmt | line_format \"{{.msg}}\" | regexp `^\\((?P<machine>[^)]+)\\) (?P<scenario>\\S+) by ip (?P<ip>\\S+) \\((?P<country>[A-Z]*)/?(?P<asn>\\d*)\\) : (?P<duration>\\S+) (?P<ban>\\S+) on` [24h])))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 20
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "links": [
+                {
+                  "title": "Which IPs were banned",
+                  "url": "/d/homelab-crowdsec?${__url_time_range}&viewPanel=panel-16"
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
           "gridPos": {
             "x": 18,
             "y": 4,
@@ -674,7 +723,13 @@ data:
                     "value": 0.9
                   }
                 ]
-              }
+              },
+              "links": [
+                {
+                  "title": "Show details",
+                  "url": "/d/homelab-overview?${__url_time_range}&viewPanel=panel-8"
+                }
+              ]
             },
             "overrides": []
           },
@@ -745,7 +800,13 @@ data:
                     "value": 4
                   }
                 ]
-              }
+              },
+              "links": [
+                {
+                  "title": "Show details",
+                  "url": "/d/homelab-network?${__url_time_range}&viewPanel=panel-13"
+                }
+              ]
             },
             "overrides": []
           },
@@ -776,8 +837,8 @@ data:
         },
         {
           "type": "stat",
-          "title": "Disks failing SMART",
-          "description": "Physical disks on the Proxmox host whose SMART self-assessment fails. VM disks are virtual and have no SMART data.",
+          "title": "Disks at risk",
+          "description": "Proxmox host disks that fail SMART, have remapped bad sectors, or (NVMe) have used 90%+ of their rated writes. Back up and plan a replacement.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -788,7 +849,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "count(smartmon_device_smart_healthy{job=\"proxmox-node\"} == 0) or vector(0)",
+              "expr": "count(max by (disk) (smartmon_device_smart_healthy{job=\"proxmox-node\"} == 0) or max by (disk) (smartmon_reallocated_sector_ct_raw_value{job=\"proxmox-node\"} > 0) or max by (disk) (label_replace(nvme_percentage_used_ratio, \"disk\", \"/dev/$1\", \"device\", \"(nvme[0-9]+)n[0-9]+\") >= 0.9)) or vector(0)",
               "legendFormat": "",
               "refId": "A",
               "instant": true,
@@ -812,10 +873,16 @@ data:
                   },
                   {
                     "color": "red",
-                    "value": 1
+                    "value": 3
                   }
                 ]
-              }
+              },
+              "links": [
+                {
+                  "title": "Show details",
+                  "url": "/d/homelab-overview?${__url_time_range}&viewPanel=panel-9"
+                }
+              ]
             },
             "overrides": []
           },
@@ -847,7 +914,7 @@ data:
         {
           "type": "stat",
           "title": "Guests without backup",
-          "description": "Proxmox VMs and LXCs that no backup job covers. Hosts & Cluster lists them.",
+          "description": "Proxmox VMs and LXCs that no backup job covers.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -885,7 +952,13 @@ data:
                     "value": 99
                   }
                 ]
-              }
+              },
+              "links": [
+                {
+                  "title": "Show details",
+                  "url": "/d/homelab-overview?${__url_time_range}&viewPanel=panel-7"
+                }
+              ]
             },
             "overrides": []
           },
@@ -988,6 +1061,23 @@ data:
                     "value": 260
                   }
                 ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "alertname"
+                },
+                "properties": [
+                  {
+                    "id": "links",
+                    "value": [
+                      {
+                        "title": "Open this alert",
+                        "url": "/alerting/list?search=${__value.raw}"
+                      }
+                    ]
+                  }
+                ]
               }
             ]
           },
@@ -1036,8 +1126,8 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "Requests per hour",
-          "description": "NPMPlus responses per hour by status class. Red is server errors.",
+          "title": "Public requests per hour",
+          "description": "Public-site responses per hour by status class. Red is server errors.",
           "datasource": {
             "type": "loki",
             "uid": "${loki}"
@@ -1048,7 +1138,7 @@ data:
                 "type": "loki",
                 "uid": "${loki}"
               },
-              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", status=~\"2..\"} [1h]))",
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", vhost=~\"[a-z0-9-]+\\\\.shiba-toast\\\\.com\", status=~\"2..\"} [1h]))",
               "legendFormat": "2xx",
               "refId": "A",
               "queryType": "range"
@@ -1058,7 +1148,7 @@ data:
                 "type": "loki",
                 "uid": "${loki}"
               },
-              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", status=~\"3..\"} [1h]))",
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", vhost=~\"[a-z0-9-]+\\\\.shiba-toast\\\\.com\", status=~\"3..\"} [1h]))",
               "legendFormat": "3xx",
               "refId": "B",
               "queryType": "range"
@@ -1068,7 +1158,7 @@ data:
                 "type": "loki",
                 "uid": "${loki}"
               },
-              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", status=~\"4..\"} [1h]))",
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", vhost=~\"[a-z0-9-]+\\\\.shiba-toast\\\\.com\", status=~\"4..\"} [1h]))",
               "legendFormat": "4xx",
               "refId": "C",
               "queryType": "range"
@@ -1078,7 +1168,7 @@ data:
                 "type": "loki",
                 "uid": "${loki}"
               },
-              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", status=~\"5..\"} [1h]))",
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", vhost=~\"[a-z0-9-]+\\\\.shiba-toast\\\\.com\", status=~\"5..\"} [1h]))",
               "legendFormat": "5xx",
               "refId": "D",
               "queryType": "range"
@@ -1097,7 +1187,13 @@ data:
                   "mode": "normal"
                 }
               },
-              "unit": "short"
+              "unit": "short",
+              "links": [
+                {
+                  "title": "Show details",
+                  "url": "/d/homelab-proxy?${__url_time_range}"
+                }
+              ]
             },
             "overrides": [
               {
@@ -1184,8 +1280,8 @@ data:
         },
         {
           "type": "bargauge",
-          "title": "Downtime in the last 24h",
-          "description": "Uptime of every site and LAN host that missed at least one probe today, worst first.",
+          "title": "Public sites \u2014 uptime (24h)",
+          "description": "Share of probes each public site answered in the last 24 hours, worst first. Click a bar for that site's probe history.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1196,7 +1292,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sort(bottomk(7, min by (name) (avg_over_time(probe_success{job=~\"blackbox-http|blackbox-icmp\"}[24h])) < 1))",
+              "expr": "sort(min by (name) (avg_over_time(probe_success{job=\"blackbox-http\",group=\"external\"}[24h])))",
               "legendFormat": "{{name}}",
               "refId": "A",
               "instant": true,
@@ -1207,7 +1303,6 @@ data:
             "defaults": {
               "custom": {},
               "unit": "percentunit",
-              "noValue": "Everything answered all day",
               "decimals": 1,
               "min": 0,
               "max": 1,
@@ -1227,7 +1322,13 @@ data:
                     "value": 0.99
                   }
                 ]
-              }
+              },
+              "links": [
+                {
+                  "title": "Probe history for ${__field.labels.name}",
+                  "url": "/d/homelab-network?${__url_time_range}&var-site=${__field.labels.name}&viewPanel=panel-12"
+                }
+              ]
             },
             "overrides": []
           },
@@ -1299,7 +1400,13 @@ data:
                     "value": 0.9
                   }
                 ]
-              }
+              },
+              "links": [
+                {
+                  "title": "Show details",
+                  "url": "/d/homelab-overview?${__url_time_range}"
+                }
+              ]
             },
             "overrides": []
           },

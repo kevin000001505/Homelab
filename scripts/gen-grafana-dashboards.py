@@ -12,6 +12,7 @@ Layout rules, for readability: at most four stat tiles per row, any chart with
 many series gets the full width, and legends sit under the chart.
 """
 import json
+import re
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent.parent / "apps/monitoring/grafana-dashboards"
@@ -61,24 +62,29 @@ class Layout:
     """Places panels left-to-right on Grafana's 24-column grid."""
 
     def __init__(self):
-        self.x = self.y = self.row_h = 0
+        self.x = self.y = self.row_h = self.count = 0
         self.panels = []
+        self.inside = None  # a collapsed row holds the panels that follow it
 
     def add(self, panel, w, h):
         if self.x + w > 24:
             self.x, self.y = 0, self.y + self.row_h
             self.row_h = 0
         panel["gridPos"] = {"x": self.x, "y": self.y, "w": w, "h": h}
-        panel["id"] = len(self.panels) + 1
-        self.panels.append(panel)
+        self.count += 1
+        panel["id"] = self.count
+        (self.panels if self.inside is None else self.inside["panels"]).append(panel)
         self.x += w
         self.row_h = max(self.row_h, h)
 
-    def row(self, title):
+    def row(self, title, collapsed=False):
         if self.x:
             self.x, self.y = 0, self.y + self.row_h
         self.row_h = 0
-        self.add({"type": "row", "title": title, "collapsed": False, "panels": []}, 24, 1)
+        self.inside = None
+        r = {"type": "row", "title": title, "collapsed": collapsed, "panels": []}
+        self.add(r, 24, 1)
+        self.inside = r if collapsed else None
         self.x, self.y, self.row_h = 0, self.y + 1, 0
 
 
@@ -108,11 +114,13 @@ UPDOWN = [{"type": "value", "options": {
 
 
 def panel(kind, title, targets, ds=PROM, unit=None, desc="", defaults=None,
-          options=None, overrides=None, transformations=None):
+          options=None, overrides=None, transformations=None, links=None):
     fd = {"custom": {}}
     if unit:
         fd["unit"] = unit
     fd.update(defaults or {})
+    if links:
+        fd["links"] = links
     p = {
         "type": kind, "title": title, "description": desc, "datasource": ds,
         "targets": targets, "fieldConfig": {"defaults": fd, "overrides": overrides or []},
@@ -225,6 +233,27 @@ def sort_by(field):
     return {"id": "sortBy", "options": {"sort": [{"field": field, "desc": True}]}}
 
 
+def goto(uid, panel=None, **variables):
+    """URL of another homelab dashboard, keeping the time range. `panel` (a title) opens just
+    that panel; resolve_links() swaps the title for its id once every dashboard is built."""
+    query = ["${__url_time_range}"] + [f"var-{k}={v}" for k, v in variables.items()]
+    if panel:
+        query.append(f"viewPanel=@@{uid}|{panel}@@")
+    return f"/d/{uid}?" + "&".join(query)
+
+
+def link(url, title="Show details"):
+    """Data links for fieldConfig: with one link, clicking the value opens it."""
+    return [{"title": title, "url": url}]
+
+
+def ip_link(column):
+    """Table column override: click an IP to open the IP lookup dashboard."""
+    return {"matcher": {"id": "byName", "options": column}, "properties": [
+        {"id": "links", "value": link("/d/homelab-ip?var-ip=${__value.raw}&from=now-7d&to=now",
+                                      "Everything ${__value.raw} did")}]}
+
+
 def top_table(title, expr, key, label, key_label=None, desc=""):
     """Loki instant topk → two-column table (key, count) with a gauge bar."""
     key_label = key_label or key
@@ -279,7 +308,9 @@ ROOT_DISK = ('1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|over
              '/ node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}')
 PVE_STORAGE = ('(pve_disk_usage_bytes{id=~"storage/.*"} / pve_disk_size_bytes{id=~"storage/.*"}) '
                '* on (id) group_left (node, storage) pve_storage_info')
-NPM_ALL = '{job="nginx", host="npmplus", status=~".+"}'
+# Sites reachable from the internet: blackbox's `external` group, NPMPlus hosts without `.lan.`.
+PUBLIC_SITES = 'job="blackbox-http",group="external"'
+NPM_PUBLIC = r'job="nginx", host="npmplus", vhost=~"[a-z0-9-]+\\.shiba-toast\\.com"'
 
 
 def zero_good(warn=1, crit=1):
@@ -294,12 +325,26 @@ def fullest_disks():
             f'max by (name) (label_join({PVE_STORAGE}, "name", " / ", "node", "storage"))')
 
 
+def nvme_disk(expr):
+    """node-exporter names NVMe drives nvme0n1; smartmon calls the same drive /dev/nvme0."""
+    return f'label_replace({expr}, "disk", "/dev/$1", "device", "(nvme[0-9]+)n[0-9]+")'
+
+
+# Proxmox host disks to replace soon: SMART verdict failed, sectors already remapped, or an
+# NVMe drive past 90% of its rated writes. SMART's own verdict stays "passed" for the last two.
+DISKS_AT_RISK = (
+    'max by (disk) (smartmon_device_smart_healthy{job="proxmox-node"} == 0) or '
+    'max by (disk) (smartmon_reallocated_sector_ct_raw_value{job="proxmox-node"} > 0) or '
+    f'max by (disk) ({nvme_disk("nvme_percentage_used_ratio")} >= 0.9)')
+
+
 def today():
     """The wall display: one 1080p screen, green when there is nothing to do.
 
     Rows of tiles, top to bottom: broken right now, the last 24 hours, slow-burning
-    housekeeping. Below them, the detail behind the tiles. Every tile except the
-    traffic counters is a problem count, so anything not green needs a look.
+    housekeeping. Below them, the detail behind the tiles. Services count only when they
+    are public; LAN-only sites and hosts surface through Firing alerts. Click any panel
+    to open the dashboard (or the single panel) that explains it.
     """
     L = Layout()
 
@@ -307,61 +352,72 @@ def today():
     L.add(stat("Firing alerts", [prom(
         'count(ALERTS{alertstate="firing",severity=~"warning|critical"}) or vector(0)', instant=True)],
         desc="Warning and critical alerts. The table below lists them.",
-        defaults=zero_good(1, 3)), 6, 4)
-    L.add(stat("Services down", [prom(
-        'count(probe_success{job="blackbox-http"} == 0) or vector(0)', instant=True)],
-        desc="Public and internal sites whose HTTP probe fails right now.",
-        defaults=zero_good()), 6, 4)
-    L.add(stat("LAN hosts unreachable", [prom(
-        'count(probe_success{job="blackbox-icmp",group="lan"} == 0) or vector(0)', instant=True)],
-        desc="Hosts on the LAN that do not answer ping.", defaults=zero_good()), 6, 4)
+        defaults=zero_good(1, 3), links=link("/alerting/list?search=state:firing",
+                                             "Open firing alerts")), 6, 4)
+    L.add(stat("Public sites down", [prom(
+        f'count(probe_success{{{PUBLIC_SITES}}} == 0) or vector(0)', instant=True)],
+        desc="Sites reachable from the internet whose HTTP probe fails right now.",
+        defaults=zero_good(), links=link(goto("homelab-network", "Sites"))), 6, 4)
     L.add(stat("WAN port forward", [prom('min(probe_success{job="blackbox-tcp"})', instant=True)],
                desc="TCP connect to the public IP from inside the LAN. DOWN = the router's port "
                     "forward is gone.",
-               defaults={"mappings": UPDOWN, "thresholds": thresholds(("red", None), ("green", 1))}),
-          6, 4)
-
-    # Last 24 hours
-    L.add(stat("Requests (24h)", [loki(f'sum(count_over_time({NPM_ALL} [24h]))', instant=True)],
-               ds=LOKI, unit="short", color_mode="value",
-               desc="Requests NPMPlus served. It fronts every site, k3s apps included.",
-               defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "blue"}}), 6, 4)
-    L.add(stat("Server errors (24h)", [loki(
-        'sum(count_over_time({job="nginx", host="npmplus", status=~"5.."} [24h]))', instant=True)],
-        ds=LOKI, desc="5xx responses from NPMPlus. Requests per hour below shows when; "
-                      "Reverse Proxy & Requests shows which host.",
-        defaults={"noValue": "0", **zero_good(1, 50)}), 6, 4)
-    L.add(stat("IPs banned (24h)", [loki(
-        f'count(sum by (ip) (count_over_time({CS_BAN} [24h])))', instant=True)],
-        ds=LOKI, color_mode="value",
-        desc="Distinct IPs CrowdSec banned from your own traffic. A jump means someone is "
-             "probing you; the CrowdSec dashboard has who and why.",
-        defaults={"noValue": "0", **zero_good(20, 100)}), 6, 4)
+               defaults={"mappings": UPDOWN, "thresholds": thresholds(("red", None), ("green", 1))},
+               links=link(goto("homelab-network", "WAN port forward (from LAN)"))), 6, 4)
     L.add(stat("Internet ping", [prom(
         'avg(probe_icmp_duration_seconds{job="blackbox-icmp",group="internet",phase="rtt"})')],
         unit="s", graph=True,
-        defaults={"thresholds": thresholds(("green", None), ("orange", 0.05), ("red", 0.1))}), 6, 4)
+        defaults={"thresholds": thresholds(("green", None), ("orange", 0.05), ("red", 0.1))},
+        links=link(goto("homelab-network", "Ping RTT — internet"))), 6, 4)
+
+    # Last 24 hours
+    L.add(stat("Public requests (24h)", [loki(
+        f'sum(count_over_time({{{NPM_PUBLIC}}} [24h]))', instant=True)],
+        ds=LOKI, unit="short", color_mode="value",
+        desc="Requests NPMPlus served for the public sites.",
+        defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "blue"}},
+        links=link(goto("homelab-proxy"))), 6, 4)
+    L.add(stat("Public server errors (24h)", [loki(
+        f'sum(count_over_time({{{NPM_PUBLIC}, status=~"5.."}} [24h]))', instant=True)],
+        ds=LOKI, desc="5xx responses from the public sites.",
+        defaults={"noValue": "0", **zero_good(1, 50)},
+        links=link(goto("homelab-proxy", "Server errors (5xx)"))), 6, 4)
+    L.add(stat("Attack attempts (24h)", [loki(
+        f'sum(count_over_time({SUSPICIOUS} [24h]))', instant=True)],
+        ds=LOKI, color_mode="value",
+        desc="Requests from the internet that NPMPlus dropped (444: bare IP or a LAN-only host) "
+             "or that went for exploit paths (/.env, /.git, wp-admin ...). A few hundred a day "
+             "is normal internet background noise.",
+        defaults={"noValue": "0", **zero_good(500, 2000)},
+        links=link(goto("homelab-crowdsec"))), 6, 4)
+    L.add(stat("IPs banned (24h)", [loki(
+        f'count(sum by (ip) (count_over_time({CS_BAN} [24h])))', instant=True)],
+        ds=LOKI, color_mode="value",
+        desc="Distinct IPs CrowdSec banned from your own traffic. Click for which IPs and why.",
+        defaults={"noValue": "0", **zero_good(20, 100)},
+        links=link(goto("homelab-crowdsec", "Ban events"), "Which IPs were banned")), 6, 4)
 
     # Housekeeping: slow problems that never page anyone
     L.add(stat("Fullest disk", [prom(f'max({fullest_disks()})', instant=True)],
                unit="percentunit", desc="Fullest host root disk or Proxmox storage. The list "
                                         "below shows the top seven.",
                defaults={"decimals": 0, "thresholds": thresholds(
-                   ("green", None), ("orange", 0.8), ("red", 0.9))}), 6, 4)
+                   ("green", None), ("orange", 0.8), ("red", 0.9))},
+               links=link(goto("homelab-overview", "Proxmox storage"))), 6, 4)
     L.add(stat("Soonest TLS cert", [prom(
         'min((probe_ssl_earliest_cert_expiry{job="blackbox-http"} - time()) / 86400)', instant=True)],
         unit="d", desc="Days until the soonest-expiring certificate among probed sites.",
         defaults={"decimals": 1,
-                  "thresholds": thresholds(("red", None), ("orange", 2), ("green", 4))}), 6, 4)
-    L.add(stat("Disks failing SMART", [prom(
-        'count(smartmon_device_smart_healthy{job="proxmox-node"} == 0) or vector(0)', instant=True)],
-        desc="Physical disks on the Proxmox host whose SMART self-assessment fails. VM disks "
-             "are virtual and have no SMART data.",
-        defaults=zero_good()), 6, 4)
+                  "thresholds": thresholds(("red", None), ("orange", 2), ("green", 4))},
+        links=link(goto("homelab-network", "Sites"))), 6, 4)
+    L.add(stat("Disks at risk", [prom(f'count({DISKS_AT_RISK}) or vector(0)', instant=True)],
+               desc="Proxmox host disks that fail SMART, have remapped bad sectors, or (NVMe) "
+                    "have used 90%+ of their rated writes. Back up and plan a replacement.",
+               defaults=zero_good(1, 3),
+               links=link(goto("homelab-overview", "Disks (SMART)"))), 6, 4)
     L.add(stat("Guests without backup", [prom('max(pve_not_backed_up_total) or vector(0)',
                                               instant=True)],
-               desc="Proxmox VMs and LXCs that no backup job covers. Hosts & Cluster lists them.",
-               defaults=zero_good(1, 99)), 6, 4)
+               desc="Proxmox VMs and LXCs that no backup job covers.",
+               defaults=zero_good(1, 99), links=link(goto("homelab-overview", "Guests"))), 6, 4)
 
     # The detail behind the tiles
     # One `target` column from the most telling label the alert has (later labels win).
@@ -378,37 +434,43 @@ def today():
                 "critical": {"color": "red", "index": 0},
                 "warning": {"color": "orange", "index": 1}}}]},
             {"id": "custom.cellOptions", "value": {"type": "color-text"}}]},
-            width("alertname", 260)]), 12, 7)
-    per_hour = ts("Requests per hour", [
-        loki(f'sum(count_over_time({{job="nginx", host="npmplus", status=~"{c}.."}} [1h]))',
+            width("alertname", 260),
+            {"matcher": {"id": "byName", "options": "alertname"}, "properties": [
+                {"id": "links", "value": link("/alerting/list?search=${__value.raw}",
+                                              "Open this alert")}]}]), 12, 7)
+    per_hour = ts("Public requests per hour", [
+        loki(f'sum(count_over_time({{{NPM_PUBLIC}, status=~"{c}.."}} [1h]))',
              f"{c}xx", ref=chr(63 + int(c))) for c in "2345"],
         unit="short", bars=True, ds=LOKI,
-        desc="NPMPlus responses per hour by status class. Red is server errors.",
+        desc="Public-site responses per hour by status class. Red is server errors.",
+        links=link(goto("homelab-proxy")),
         overrides=[{"matcher": {"id": "byName", "options": f"{c}xx"},
                     "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": col}}]}
                    for c, col in [("2", "green"), ("3", "blue"), ("4", "orange"), ("5", "red")]])
     per_hour["interval"] = "1h"
     L.add(per_hour, 12, 7)
-    # Seven bars fill the 1080p screen; more would scroll.
     bar_list = {"orientation": "horizontal", "displayMode": "basic", "showUnfilled": True,
                 "valueMode": "text", "namePlacement": "left", "minVizHeight": 16,
                 "maxVizHeight": 24, "reduceOptions": {"calcs": ["lastNotNull"], "fields": "",
                                                       "values": False}}
-    L.add(panel("bargauge", "Downtime in the last 24h", [prom(
-        'sort(bottomk(7, min by (name) (avg_over_time(probe_success{job=~"blackbox-http|blackbox-icmp"}[24h])) < 1))',
+    L.add(panel("bargauge", "Public sites — uptime (24h)", [prom(
+        f'sort(min by (name) (avg_over_time(probe_success{{{PUBLIC_SITES}}}[24h])))',
         "{{name}}", instant=True)],
         unit="percentunit", options=dict(bar_list),
-        desc="Uptime of every site and LAN host that missed at least one probe today, worst first.",
-        defaults={"noValue": "Everything answered all day", "decimals": 1, "min": 0, "max": 1,
-                  "thresholds": thresholds(("red", None), ("orange", 0.9), ("green", 0.99))}),
+        desc="Share of probes each public site answered in the last 24 hours, worst first. "
+             "Click a bar for that site's probe history.",
+        defaults={"decimals": 1, "min": 0, "max": 1,
+                  "thresholds": thresholds(("red", None), ("orange", 0.9), ("green", 0.99))},
+        links=link(goto("homelab-network", "HTTP probes — public & internal services",
+                        site="${__field.labels.name}"), "Probe history for ${__field.labels.name}")),
           12, 7)
     L.add(panel("bargauge", "Fullest disks", [prom(
         f'sort_desc(topk(7, {fullest_disks()}))', "{{name}}", instant=True)],
         unit="percentunit", options=dict(bar_list),
         desc="Host root disks and Proxmox storages (node / storage).",
         defaults={"decimals": 0, "min": 0, "max": 1,
-                  "thresholds": thresholds(("green", None), ("orange", 0.8), ("red", 0.9))}),
-          12, 7)
+                  "thresholds": thresholds(("green", None), ("orange", 0.8), ("red", 0.9))},
+        links=link(goto("homelab-overview"))), 12, 7)
 
     v_loki = ds_var("loki", "loki", "Loki")
     v_loki["hide"] = 2  # nothing to pick on a wall display
@@ -514,6 +576,41 @@ def overview():
             gauge_cell("Used", "percentunit", 0, 1, ("green", None), ("orange", 0.8), ("red", 0.9)),
             unit_cell("Size", "bytes"),
         ]), 24, 8)
+    smart = 'job="proxmox-node"'
+    disk_q = {
+        "A": f'smartmon_device_smart_healthy{{{smart}}}',
+        "B": f'smartmon_temperature_celsius_raw_value{{{smart}}} or {nvme_disk("nvme_temperature_celsius")}',
+        "C": f'smartmon_power_on_hours_raw_value{{{smart}}} or {nvme_disk("nvme_power_on_hours_total")}',
+        "D": f'smartmon_reallocated_sector_ct_raw_value{{{smart}}}',
+        "E": nvme_disk("nvme_percentage_used_ratio"),
+        "F": nvme_disk("nvme_media_errors_total"),
+    }
+    cols = {"Value #A": "SMART", "Value #B": "Temp", "Value #C": "Powered on",
+            "Value #D": "Bad sectors", "Value #E": "Wear", "Value #F": "Media errors"}
+    L.add(table("Disks (SMART)", [
+        prom(f'max by (disk) ({e})', instant=True, ref=r, table=True) for r, e in disk_q.items()],
+        desc="Physical disks in the Proxmox host. SMART's verdict stays PASSED until a disk is "
+             "nearly dead; bad sectors, NVMe wear and media errors warn earlier.",
+        transformations=[
+            {"id": "merge", "options": {}},
+            organize(rename={**cols, "disk": "Disk"}, order=["disk", *cols]),
+            keep("Disk", *cols.values()),
+        ],
+        overrides=[
+            {"matcher": {"id": "byName", "options": "SMART"}, "properties": [
+                {"id": "mappings", "value": [{"type": "value", "options": {
+                    "0": {"text": "FAILED", "color": "red", "index": 0},
+                    "1": {"text": "passed", "color": "green", "index": 1}}}]},
+                {"id": "custom.cellOptions", "value": {"type": "color-text"}}]},
+            unit_cell("Temp", "celsius"), unit_cell("Powered on", "h"),
+            {"matcher": {"id": "byName", "options": "Bad sectors"}, "properties": [
+                {"id": "thresholds", "value": thresholds(("green", None), ("orange", 1))},
+                {"id": "custom.cellOptions", "value": {"type": "color-text"}}]},
+            gauge_cell("Wear", "percentunit", 0, 1, ("green", None), ("orange", 0.8), ("red", 0.9)),
+            {"matcher": {"id": "byName", "options": "Media errors"}, "properties": [
+                {"id": "thresholds", "value": thresholds(("green", None), ("orange", 1))},
+                {"id": "custom.cellOptions", "value": {"type": "color-text"}}]},
+        ]), 24, 6)
 
     L.row("Kubernetes")
     for title, expr, th in [
@@ -668,9 +765,11 @@ def proxy():
                     'vhost=~"$vhost", geoip_country_name!=""} [$__range])))',
                     "geoip_country_name", "Requests", key_label="Country",
                     desc="Public clients only — LAN traffic has no GeoIP data."), 8, 12)
-    L.add(top_table("Top client IPs",
-                    f'topk(15, sum by (client_ip) (count_over_time({NPM_SEL} | regexp `{NPM_RE}` [$__range])))',
-                    "client_ip", "Requests", key_label="Client IP"), 8, 12)
+    top_ips = top_table("Top client IPs",
+                        f'topk(15, sum by (client_ip) (count_over_time({NPM_SEL} | regexp `{NPM_RE}` [$__range])))',
+                        "client_ip", "Requests", key_label="Client IP")
+    top_ips["fieldConfig"]["overrides"].append(ip_link("Client IP"))
+    L.add(top_ips, 8, 12)
     L.add(panel("geomap", "Where public requests come from", [loki(
         f'sum by (geoip_location_latitude, geoip_location_longitude, geoip_city_name) '
         f'(count_over_time({NPM_SEL} | geoip_location_latitude!="" [$__range]))', instant=True)],
@@ -719,29 +818,124 @@ def proxy():
                      variables=[v_loki, v_vhost, v_svc])
 
 
-# =================================================================== CROWDSEC
+# =================================================================== SECURITY
 
-def crowdsec():
+# Requests from the internet that look like an attack: NPMPlus dropped them (444 — the bare
+# IP, an unknown host, or a LAN-only host asked for from outside) or they went for a path
+# only exploit scanners ask for.
+SCAN_PATH = (r'(?i).*(/\.env|/\.git/|wp-(admin|login|includes|content)|xmlrpc\.php|phpmyadmin'
+             r'|/cgi-bin/|/actuator|\.\./|etc/passwd|phpunit|boaform|HNAP1|/\.aws/|server-status'
+             r'|SDK/webLanguage|\.php$).*')
+NPM_INTERNET = '{job="nginx", host="npmplus", geoip_country_name!=""}'
+SUSPICIOUS = f'{NPM_INTERNET} | regexp `{NPM_RE}` | status="444" or path=~`{SCAN_PATH}`'
+# Plex answers 401 to every unauthenticated API poll from its own apps, so it is left out.
+FAILED_LOGIN = ('{job="nginx", host="npmplus", geoip_country_name!="", status=~"401|403", '
+                'vhost!="plex.shiba-toast.com"}')
+MIXED = {"type": "datasource", "uid": "-- Mixed --"}
+
+
+def total(sel):
+    """Matching log lines in the dashboard's time range."""
+    return f'sum(count_over_time({sel} [$__range]))'
+
+
+def series_table(title, expr, columns, value, desc="", overrides=()):
+    """Loki instant query → one row per series; columns maps label → header."""
+    return table(title, [loki(expr, instant=True)], ds=LOKI, desc=desc,
+                 transformations=SERIES_TABLE + [
+                     organize(rename={**columns, "Value #A": value, "Value": value},
+                              order=list(columns)),
+                     keep(*columns.values(), value), sort_by(value)],
+                 overrides=[{"matcher": {"id": "byName", "options": value}, "properties": [
+                     {"id": "custom.cellOptions", "value": {
+                         "type": "gauge", "mode": "basic", "valueDisplayMode": "text"}},
+                     {"id": "color", "value": {"mode": "fixed", "fixedColor": "orange"}}]},
+                     *overrides])
+
+
+def security():
     L = Layout()
     v_loki = ds_var("loki", "loki", "Loki")
 
-    L.row("Decisions")
-    L.add(stat("CrowdSec agent", [prom('up{job="crowdsec"}', instant=True)],
-               defaults={"mappings": UPDOWN, "thresholds": thresholds(("red", None), ("green", 1))}), 6, 5)
-    L.add(stat("Local bans (active)", [prom(
-        'sum(cs_active_decisions{origin!~"CAPI|lists"}) or vector(0)', instant=True)],
-        desc="Bans from your own traffic that are still in effect.",
-        defaults={"thresholds": thresholds(("green", None), ("orange", 10), ("red", 50))}), 6, 5)
-    L.add(stat("IPs banned in time range", [loki(
+    L.row("Are we under attack? (selected time range)")
+    for title, expr, desc in [
+        ("Attack attempts", total(SUSPICIOUS),
+         "Internet requests NPMPlus dropped (444) or that went for exploit paths."),
+        ("Scanner probes", total(f'{NPM_INTERNET} | regexp `{NPM_RE}` | path=~`{SCAN_PATH}`'),
+         "Requests for /.env, /.git, wp-admin, phpmyadmin, path traversal ... Your apps "
+         "never serve these, so every hit is a bot looking for a hole."),
+        ("Dropped by NPMPlus (444)",
+         total('{job="nginx", host="npmplus", geoip_country_name!="", status="444"}'),
+         "NPMPlus closed the connection without answering: the request used your bare IP, "
+         "an unknown hostname, or a LAN-only site from outside."),
+        ("Failed logins", total(FAILED_LOGIN),
+         "401/403 answers to internet clients (Plex excluded, it 401s every app poll). "
+         "A burst from one IP is someone guessing passwords."),
+    ]:
+        L.add(stat(title, [loki(expr, instant=True)], ds=LOKI, color_mode="value", desc=desc,
+                   defaults={"noValue": "0", "decimals": 0,
+                             "color": {"mode": "fixed", "fixedColor": "orange"}}), 6, 4)
+    L.add(stat("Attacker IPs", [loki(
+        f'count(sum by (client_ip) (count_over_time({SUSPICIOUS} [$__range])))', instant=True)],
+        ds=LOKI, color_mode="value", desc="Distinct IPs behind the attack attempts.",
+        defaults={"noValue": "0", "decimals": 0,
+                  "color": {"mode": "fixed", "fixedColor": "orange"}}), 6, 4)
+    L.add(stat("WAF blocks", [prom('sum(increase(cs_appsec_block_total[$__range])) or vector(0)',
+                                   instant=True)],
+               color_mode="value", desc="Requests CrowdSec's AppSec (WAF) rules blocked.",
+               defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "red"}}), 6, 4)
+    L.add(stat("IPs banned", [loki(
         f'count(sum by (ip) (count_over_time({CS_BAN} [$__range])))', instant=True)],
-        ds=LOKI, color_mode="value", defaults={"noValue": "0", "decimals": 0}), 6, 5)
-    L.add(stat("Community blocklist size", [prom(
-        'sum(cs_active_decisions{origin=~"CAPI|lists"})', instant=True)],
-        color_mode="value", defaults={"color": {"mode": "fixed", "fixedColor": "blue"}}), 6, 5)
+        ds=LOKI, color_mode="value", desc="Distinct IPs CrowdSec banned from your own traffic.",
+        defaults={"noValue": "0", "decimals": 0, "color": {"mode": "fixed", "fixedColor": "red"}}),
+          6, 4)
+    L.add(stat("Banned IPs turned away", [prom(
+        'sum(increase(cs_lapi_decisions_ok_total[$__range])) or vector(0)', instant=True)],
+        color_mode="value",
+        desc="NPMPlus asked CrowdSec about a client and got a ban back, so it refused the "
+             "request. Proof the bans are doing their job.",
+        defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "green"}}), 6, 4)
 
+    per_hour = ts("Attack attempts per hour", [
+        loki(f'sum(count_over_time({NPM_INTERNET} | regexp `{NPM_RE}` | path=~`{SCAN_PATH}` [1h]))',
+             "scanner probes", ref="A"),
+        loki('sum(count_over_time({job="nginx", host="npmplus", geoip_country_name!="", '
+             'status="444"} [1h]))', "dropped (444)", ref="B"),
+        loki(f'sum(count_over_time({FAILED_LOGIN} [1h]))', "failed logins", ref="C"),
+        loki(f'sum(count_over_time({CS_BAN} [1h]))', "bans", ref="D"),
+        prom('sum(increase(cs_appsec_block_total[1h]))', "WAF blocks", ref="E")],
+        ds=MIXED, bars=True, unit="short", legend="list",
+        desc="Spikes are someone scanning or brute-forcing you. Steady low bars are the "
+             "internet's usual background noise.")
+    per_hour["interval"] = "1h"
+    L.add(per_hour, 24, 8)
+
+    L.add(series_table("Top attacking IPs",
+                       f'topk(20, sum by (client_ip, geoip_country_name) '
+                       f'(count_over_time({SUSPICIOUS} [$__range])))',
+                       {"client_ip": "IP", "geoip_country_name": "Country"}, "Attempts",
+                       desc="Click an IP to see everything it did.", overrides=[ip_link("IP")]),
+          12, 10)
+    L.add(series_table("What they went for",
+                       f'topk(20, sum by (vhost, path) (count_over_time({SUSPICIOUS} [$__range])))',
+                       {"vhost": "Host", "path": "Path"}, "Attempts",
+                       desc="Hosts and paths of the attack attempts. 444 rows on a bare IP are "
+                            "bots sweeping the internet, not aimed at you."), 12, 10)
+    L.add(series_table("Failed logins by IP",
+                       f'topk(20, sum by (client_ip, vhost, geoip_country_name) '
+                       f'(count_over_time({FAILED_LOGIN} | regexp `{NPM_RE}` [$__range])))',
+                       {"client_ip": "IP", "vhost": "Host", "geoip_country_name": "Country"},
+                       "Failures", desc="Click an IP to see everything it did.",
+                       overrides=[ip_link("IP")]), 12, 10)
+    L.add(top_table("Attack attempts by country",
+                    f'topk(15, sum by (geoip_country_name) (count_over_time({SUSPICIOUS} [$__range])))',
+                    "geoip_country_name", "Attempts", key_label="Country"), 12, 10)
+
+    L.row("Bans")
     L.add(table("Ban events", [loki(CS_BAN)], ds=LOKI,
                 desc="Each ban CrowdSec issued in the selected time range (bans last 4h). "
-                     "For the live list run `cscli decisions list` in the crowdsec container.",
+                     "Click an IP to see everything it did. For the live list run "
+                     "`cscli decisions list` in the crowdsec container.",
                 defaults={"noValue": "No bans in this time range"},
                 transformations=[
                     {"id": "extractFields", "options": {"source": "labels", "format": "auto",
@@ -750,10 +944,28 @@ def crowdsec():
                                      "scenario": "Scenario", "duration": "Duration", "ban": "Action"},
                              order=["Time", "IP", "Country", "ASN", "Scenario", "Duration", "Action"]),
                     keep("Time", "IP", "Country", "ASN", "Scenario", "Duration", "Action"),
-                ]), 24, 12)
+                ], overrides=[ip_link("IP")]), 24, 10)
     L.add(top_table("Banned IPs by country",
                     f'topk(15, count by (country) (sum by (country, ip) (count_over_time({CS_BAN} [$__range]))))',
-                    "country", "IPs", key_label="Country"), 12, 10)
+                    "country", "IPs", key_label="Country"), 12, 9)
+    L.add(ts("Scenarios triggered", [prom(
+        'sum by (name) (increase(cs_bucket_overflowed_total[$__rate_interval])) > 0', "{{name}}")],
+        bars=True, defaults={"noValue": "No scenarios triggered", "decimals": 0}), 12, 9)
+
+    L.row("CrowdSec engine", collapsed=True)
+    L.add(stat("CrowdSec agent", [prom('up{job="crowdsec"}', instant=True)],
+               defaults={"mappings": UPDOWN, "thresholds": thresholds(("red", None), ("green", 1))}), 6, 5)
+    L.add(stat("Local bans (active)", [prom(
+        'sum(cs_active_decisions{origin!~"CAPI|lists"}) or vector(0)', instant=True)],
+        desc="Bans from your own traffic that are still in effect.",
+        defaults={"thresholds": thresholds(("green", None), ("orange", 10), ("red", 50))}), 6, 5)
+    L.add(stat("Community blocklist size", [prom(
+        'sum(cs_active_decisions{origin=~"CAPI|lists"})', instant=True)],
+        color_mode="value", defaults={"color": {"mode": "fixed", "fixedColor": "blue"}}), 6, 5)
+    L.add(stat("AppSec requests inspected", [prom(
+        'sum(increase(cs_appsec_reqs_total[$__range]))', instant=True)],
+        unit="short", color_mode="value",
+        defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "blue"}}), 6, 5)
     L.add(table("Active local bans by scenario", [prom(
         'sum by (reason) (cs_active_decisions{origin!~"CAPI|lists"})', instant=True, table=True)],
         transformations=[organize(rename={"reason": "Scenario", "Value": "Bans"}),
@@ -762,16 +974,11 @@ def crowdsec():
             {"id": "custom.cellOptions", "value": {
                 "type": "gauge", "mode": "basic", "valueDisplayMode": "text"}},
             {"id": "color", "value": {"mode": "fixed", "fixedColor": "orange"}}]}]), 12, 10)
-    L.add(ts("Scenarios triggered", [prom(
-        'sum by (name) (increase(cs_bucket_overflowed_total[$__rate_interval])) > 0', "{{name}}")],
-        bars=True, defaults={"noValue": "No scenarios triggered", "decimals": 0}), 12, 10)
     L.add(panel("piechart", "Community blocklist by reason", [prom(
         'sum by (reason) (cs_active_decisions{origin=~"CAPI|lists"})', "{{reason}}", instant=True)],
         options={"pieType": "donut", "legend": {"displayMode": "table", "placement": "right",
                                                 "values": ["value", "percent"]},
                  "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}}), 12, 10)
-
-    L.row("Detection engine")
     L.add(ts("Log lines read per second", [prom(
         'sum by (source) (rate(cs_filesource_hits_total[$__rate_interval]))', "{{source}}")],
         unit="short"), 12, 9)
@@ -791,8 +998,65 @@ def crowdsec():
         desc="/v1/decisions is on the request path: NPMPlus waits for it before serving a new client IP."),
           24, 9)
 
-    return dashboard("homelab-crowdsec", "Homelab · CrowdSec", ["security"], L,
+    # uid kept from when this was the CrowdSec dashboard, so old links still work.
+    return dashboard("homelab-crowdsec", "Homelab · Security", ["security"], L,
                      variables=[v_loki], time_from="now-24h")
+
+
+# ================================================================== IP LOOKUP
+
+def ip_lookup():
+    """Everything one client IP did: the target of every clickable IP on the other dashboards."""
+    L = Layout()
+    v_loki = ds_var("loki", "loki", "Loki")
+    v_ip = {"name": "ip", "label": "IP address", "type": "textbox", "query": "", "hide": 0,
+            "current": {"text": "", "value": ""}, "options": []}
+    # An empty label filter also matches lines where the label is missing, hence != "".
+    match = '| client_ip="$ip" | client_ip!=""'
+    access = f'{{job="nginx", host="npmplus"}} |= " $ip " | regexp `{NPM_RE}` {match}'
+
+    L.add(stat("Requests", [loki(total(access), instant=True)], ds=LOKI, color_mode="value",
+               desc="Requests NPMPlus logged from this IP. Type an IP above, or click one on "
+                    "the Security dashboard.",
+               defaults={"noValue": "0", "decimals": 0,
+                         "color": {"mode": "fixed", "fixedColor": "blue"}}), 6, 4)
+    L.add(stat("Attack attempts", [loki(
+        total(SUSPICIOUS.replace("| regexp", '|= " $ip " | regexp') + f' {match}'),
+        instant=True)], ds=LOKI, desc="Dropped (444) or exploit-path requests.",
+        defaults={"noValue": "0", **zero_good(1, 10)}), 6, 4)
+    L.add(stat("Failed logins", [loki(
+        total(f'{FAILED_LOGIN} |= " $ip " | regexp `{NPM_RE}` {match}'), instant=True)],
+        ds=LOKI, defaults={"noValue": "0", **zero_good(3, 20)}), 6, 4)
+    L.add(stat("Times banned", [loki(total(f'{CS_BAN} | ip="$ip" | ip!=""'), instant=True)], ds=LOKI,
+               defaults={"noValue": "0", **zero_good(1, 1)}), 6, 4)
+
+    L.add(series_table("Where it comes from",
+                       f'sum by (geoip_country_name, geoip_subdivision_name, geoip_city_name) '
+                       f'(count_over_time({access} [$__range]))',
+                       {"geoip_country_name": "Country", "geoip_subdivision_name": "Region",
+                        "geoip_city_name": "City"}, "Requests",
+                       desc="Empty for LAN addresses: only public IPs have GeoIP data."), 8, 8)
+    hits = ts("Requests by status", [loki(
+        f'sum by (status) (count_over_time({{job="nginx", host="npmplus"}} |= " $ip " '
+        f'| regexp `{NPM_RE}` {match} [$__auto]))', "{{status}}")],
+        ds=LOKI, bars=True, unit="short", overrides=[
+            {"matcher": {"id": "byRegexp", "options": f"^{c}.."},
+             "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": col}}]}
+            for c, col in [("2", "green"), ("3", "blue"), ("4", "orange"), ("5", "red")]])
+    L.add(hits, 16, 8)
+    L.add(series_table("What it requested",
+                       f'topk(50, sum by (vhost, path, status) (count_over_time({access} [$__range])))',
+                       {"vhost": "Host", "path": "Path", "status": "Status"}, "Requests"), 24, 10)
+    # CrowdSec writes "by ip X (", "on Ip X " and msg="X is allowlisted ...".
+    L.add(logs("CrowdSec events for this IP",
+               '{job="crowdsec"} |~ `(?i)(ip |msg=")${ip:regex}[ (]`'), 24, 8)
+    L.add(logs("Access log", access), 24, 10)
+
+    d = dashboard("homelab-ip", "Homelab · IP lookup", ["security"], L,
+                  variables=[v_loki, v_ip], time_from="now-7d")
+    d["links"].append({"title": "AbuseIPDB report for $ip", "type": "link", "icon": "external link",
+                       "url": "https://www.abuseipdb.com/check/${ip}", "targetBlank": True})
+    return d
 
 
 # ===================================================================== AI GPUS
@@ -1033,7 +1297,31 @@ def write(d):
     print(f"wrote {path.relative_to(OUT.parent.parent.parent)} ({len(d['panels'])} panels)")
 
 
+def resolve_links(dashboards):
+    """Replace goto()'s @@uid|panel title@@ markers with the panel's viewPanel id."""
+    ids = {}
+
+    def index(uid, panels):
+        for p in panels:
+            ids[(uid, p["title"])] = p["id"]
+            index(uid, p.get("panels", []))
+
+    def fix(o):
+        if isinstance(o, dict):
+            return {k: fix(v) for k, v in o.items()}
+        if isinstance(o, list):
+            return [fix(v) for v in o]
+        if isinstance(o, str):
+            return re.sub(r"@@([^|@]+)\|([^@]+)@@", lambda m: f"panel-{ids[m[1], m[2]]}", o)
+        return o
+
+    for d in dashboards:
+        index(d["uid"], d["panels"])
+    return [fix(d) for d in dashboards]
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
-    for build in (today, overview, network, proxy, crowdsec, ai_gpus):
-        write(build())
+    for d in resolve_links([build() for build in (
+            today, overview, network, proxy, security, ip_lookup, ai_gpus)]):
+        write(d)

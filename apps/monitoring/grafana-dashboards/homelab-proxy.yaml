@@ -607,6 +607,23 @@ data:
                     }
                   }
                 ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Client IP"
+                },
+                "properties": [
+                  {
+                    "id": "links",
+                    "value": [
+                      {
+                        "title": "Everything ${__value.raw} did",
+                        "url": "/d/homelab-ip?var-ip=${__value.raw}&from=now-7d&to=now"
+                      }
+                    ]
+                  }
+                ]
               }
             ]
           },
