@@ -170,8 +170,8 @@ def timeline(title, targets, **kw):
 
 
 def table(title, targets, ds=PROM, **kw):
-    kw.setdefault("options", {}).update(showHeader=True, cellHeight="md",
-                                        footer={"show": False})
+    opts = kw.setdefault("options", {})
+    opts.update(showHeader=True, cellHeight=opts.get("cellHeight", "md"), footer={"show": False})
     return panel("table", title, targets, ds=ds, **kw)
 
 
@@ -272,65 +272,154 @@ def dashboard(uid, title, tags, layout, variables=(), time_from="now-6h", refres
     }
 
 
-# =================================================================== OVERVIEW
+# ====================================================================== TODAY
 
-def overview():
+# Root filesystem usage per host, as a 0-1 ratio.
+ROOT_DISK = ('1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} '
+             '/ node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}')
+PVE_STORAGE = ('(pve_disk_usage_bytes{id=~"storage/.*"} / pve_disk_size_bytes{id=~"storage/.*"}) '
+               '* on (id) group_left (node, storage) pve_storage_info')
+NPM_ALL = '{job="nginx", host="npmplus", status=~".+"}'
+
+
+def zero_good(warn=1, crit=1):
+    """Stat defaults for a problem count: green at zero, orange from warn, red from crit."""
+    return {"decimals": 0,
+            "thresholds": thresholds(("green", None), ("orange", warn), ("red", crit))}
+
+
+def fullest_disks():
+    """Host root disks and Proxmox storages in one series set, labelled `name`."""
+    return (f'max by (name) (label_join({host(ROOT_DISK)}, "name", "", "host")) or '
+            f'max by (name) (label_join({PVE_STORAGE}, "name", " / ", "node", "storage"))')
+
+
+def today():
+    """The wall display: one 1080p screen, green when there is nothing to do.
+
+    Rows of tiles, top to bottom: broken right now, the last 24 hours, slow-burning
+    housekeeping. Below them, the detail behind the tiles. Every tile except the
+    traffic counters is a problem count, so anything not green needs a look.
+    """
     L = Layout()
-    L.row("Status")
-    L.add(stat("WAN port forward (from LAN)",
-               [prom('min(probe_success{job="blackbox-tcp"})', instant=True)],
-               desc="TCP connect to the public IP from inside the LAN (hairpin NAT). DOWN = "
-                    "the router's port forward is gone. UP does not prove outside clients "
-                    "can connect — some outages only affect traffic from the internet.",
+
+    # Right now
+    L.add(stat("Firing alerts", [prom(
+        'count(ALERTS{alertstate="firing",severity=~"warning|critical"}) or vector(0)', instant=True)],
+        desc="Warning and critical alerts. The table below lists them.",
+        defaults=zero_good(1, 3)), 6, 4)
+    L.add(stat("Services down", [prom(
+        'count(probe_success{job="blackbox-http"} == 0) or vector(0)', instant=True)],
+        desc="Public and internal sites whose HTTP probe fails right now.",
+        defaults=zero_good()), 6, 4)
+    L.add(stat("LAN hosts unreachable", [prom(
+        'count(probe_success{job="blackbox-icmp",group="lan"} == 0) or vector(0)', instant=True)],
+        desc="Hosts on the LAN that do not answer ping.", defaults=zero_good()), 6, 4)
+    L.add(stat("WAN port forward", [prom('min(probe_success{job="blackbox-tcp"})', instant=True)],
+               desc="TCP connect to the public IP from inside the LAN. DOWN = the router's port "
+                    "forward is gone.",
                defaults={"mappings": UPDOWN, "thresholds": thresholds(("red", None), ("green", 1))}),
-          6, 5)
-    for title, sel in [("Public sites up", 'group="external"'),
-                       ("Internal services up", 'group=~"internal|backend"'),
-                       ("LAN hosts reachable", 'job="blackbox-icmp",group="lan"')]:
-        L.add(stat(title, [prom(
-            f'sum(probe_success{{{sel}}}) / count(probe_success{{{sel}}})', instant=True)],
-            unit="percentunit", graph=False,
-            desc="Share of probed targets currently answering.",
-            defaults={"decimals": 0,
-                      "thresholds": thresholds(("red", None), ("orange", 0.9), ("green", 1))}),
-              6, 5)
-    L.add(stat("Firing alerts",
-               [prom('count(ALERTS{alertstate="firing",severity=~"warning|critical"}) or vector(0)',
-                     instant=True)],
-               defaults={"thresholds": thresholds(("green", None), ("orange", 1), ("red", 3))}),
-          6, 5)
-    L.add(stat("Shortest TLS cert", [prom(
+          6, 4)
+
+    # Last 24 hours
+    L.add(stat("Requests (24h)", [loki(f'sum(count_over_time({NPM_ALL} [24h]))', instant=True)],
+               ds=LOKI, unit="short", color_mode="value",
+               desc="Requests NPMPlus served. It fronts every site, k3s apps included.",
+               defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "blue"}}), 6, 4)
+    L.add(stat("Server errors (24h)", [loki(
+        'sum(count_over_time({job="nginx", host="npmplus", status=~"5.."} [24h]))', instant=True)],
+        ds=LOKI, desc="5xx responses from NPMPlus. Requests per hour below shows when; "
+                      "Reverse Proxy & Requests shows which host.",
+        defaults={"noValue": "0", **zero_good(1, 50)}), 6, 4)
+    L.add(stat("IPs banned (24h)", [loki(
+        f'count(sum by (ip) (count_over_time({CS_BAN} [24h])))', instant=True)],
+        ds=LOKI, color_mode="value",
+        desc="Distinct IPs CrowdSec banned from your own traffic. A jump means someone is "
+             "probing you; the CrowdSec dashboard has who and why.",
+        defaults={"noValue": "0", **zero_good(20, 100)}), 6, 4)
+    L.add(stat("Internet ping", [prom(
+        'avg(probe_icmp_duration_seconds{job="blackbox-icmp",group="internet",phase="rtt"})')],
+        unit="s", graph=True,
+        defaults={"thresholds": thresholds(("green", None), ("orange", 0.05), ("red", 0.1))}), 6, 4)
+
+    # Housekeeping: slow problems that never page anyone
+    L.add(stat("Fullest disk", [prom(f'max({fullest_disks()})', instant=True)],
+               unit="percentunit", desc="Fullest host root disk or Proxmox storage. The list "
+                                        "below shows the top seven.",
+               defaults={"decimals": 0, "thresholds": thresholds(
+                   ("green", None), ("orange", 0.8), ("red", 0.9))}), 6, 4)
+    L.add(stat("Soonest TLS cert", [prom(
         'min((probe_ssl_earliest_cert_expiry{job="blackbox-http"} - time()) / 86400)', instant=True)],
         unit="d", desc="Days until the soonest-expiring certificate among probed sites.",
         defaults={"decimals": 1,
-                  "thresholds": thresholds(("red", None), ("orange", 2), ("green", 4))}),
-          6, 5)
-    L.add(stat("Internet ping", [prom(
-        'avg(probe_icmp_duration_seconds{job="blackbox-icmp",group="internet",phase="rtt"})',
-        instant=True)], unit="s", graph=True,
-        defaults={"thresholds": thresholds(("green", None), ("orange", 0.05), ("red", 0.1))}),
-          6, 5)
-    L.add(stat("CrowdSec local bans", [prom(
-        'sum(cs_active_decisions{origin!~"CAPI|lists"}) or vector(0)', instant=True)],
-        desc="Bans CrowdSec made from your own NPMPlus traffic (excludes community blocklist).",
-        defaults={"thresholds": thresholds(("green", None), ("orange", 10), ("red", 50))}),
-          6, 5)
+                  "thresholds": thresholds(("red", None), ("orange", 2), ("green", 4))}), 6, 4)
+    L.add(stat("Disks failing SMART", [prom(
+        'count(smartmon_device_smart_healthy{job="proxmox-node"} == 0) or vector(0)', instant=True)],
+        desc="Physical disks on the Proxmox host whose SMART self-assessment fails. VM disks "
+             "are virtual and have no SMART data.",
+        defaults=zero_good()), 6, 4)
+    L.add(stat("Guests without backup", [prom('max(pve_not_backed_up_total) or vector(0)',
+                                              instant=True)],
+               desc="Proxmox VMs and LXCs that no backup job covers. Hosts & Cluster lists them.",
+               defaults=zero_good(1, 99)), 6, 4)
 
-    L.row("Service availability")
-    L.add(timeline("HTTP probes — public & internal services", [
-        prom('probe_success{job="blackbox-http"}', "{{name}}")],
-        desc="Green = answering. Probed every 30s by blackbox-exporter."), 24, 15)
-    L.add(table("Firing alerts", [prom(
-        'ALERTS{alertstate="firing",alertname!~"Watchdog|InfoInhibitor"}', instant=True, table=True)],
-        transformations=[keep("severity", "alertname", "name", "instance", "job", "namespace")]
-        + [organize(order=["severity", "alertname", "name", "instance", "job", "namespace"])],
+    # The detail behind the tiles
+    # One `target` column from the most telling label the alert has (later labels win).
+    target = 'ALERTS{alertstate="firing",severity=~"warning|critical"}'
+    for lbl in ("pod", "instance", "deployment", "name"):
+        target = f'label_replace({target}, "target", "$1", "{lbl}", "(.+)")'
+    L.add(table("Firing alerts", [prom(f'sort_desc({target})', instant=True, table=True)],
+        options={"cellHeight": "sm"},
+        transformations=[keep("severity", "alertname", "target", "namespace"),
+                         organize(order=["severity", "alertname", "target", "namespace"])],
         overrides=[{"matcher": {"id": "byName", "options": "severity"}, "properties": [
-            {"id": "custom.width", "value": 110},
+            {"id": "custom.width", "value": 90},
             {"id": "mappings", "value": [{"type": "value", "options": {
                 "critical": {"color": "red", "index": 0},
                 "warning": {"color": "orange", "index": 1}}}]},
-            {"id": "custom.cellOptions", "value": {"type": "color-text"}}]}]), 24, 8)
+            {"id": "custom.cellOptions", "value": {"type": "color-text"}}]},
+            width("alertname", 260)]), 12, 7)
+    per_hour = ts("Requests per hour", [
+        loki(f'sum(count_over_time({{job="nginx", host="npmplus", status=~"{c}.."}} [1h]))',
+             f"{c}xx", ref=chr(63 + int(c))) for c in "2345"],
+        unit="short", bars=True, ds=LOKI,
+        desc="NPMPlus responses per hour by status class. Red is server errors.",
+        overrides=[{"matcher": {"id": "byName", "options": f"{c}xx"},
+                    "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": col}}]}
+                   for c, col in [("2", "green"), ("3", "blue"), ("4", "orange"), ("5", "red")]])
+    per_hour["interval"] = "1h"
+    L.add(per_hour, 12, 7)
+    # Seven bars fill the 1080p screen; more would scroll.
+    bar_list = {"orientation": "horizontal", "displayMode": "basic", "showUnfilled": True,
+                "valueMode": "text", "namePlacement": "left", "minVizHeight": 16,
+                "maxVizHeight": 24, "reduceOptions": {"calcs": ["lastNotNull"], "fields": "",
+                                                      "values": False}}
+    L.add(panel("bargauge", "Downtime in the last 24h", [prom(
+        'sort(bottomk(7, min by (name) (avg_over_time(probe_success{job=~"blackbox-http|blackbox-icmp"}[24h])) < 1))',
+        "{{name}}", instant=True)],
+        unit="percentunit", options=dict(bar_list),
+        desc="Uptime of every site and LAN host that missed at least one probe today, worst first.",
+        defaults={"noValue": "Everything answered all day", "decimals": 1, "min": 0, "max": 1,
+                  "thresholds": thresholds(("red", None), ("orange", 0.9), ("green", 0.99))}),
+          12, 7)
+    L.add(panel("bargauge", "Fullest disks", [prom(
+        f'sort_desc(topk(7, {fullest_disks()}))', "{{name}}", instant=True)],
+        unit="percentunit", options=dict(bar_list),
+        desc="Host root disks and Proxmox storages (node / storage).",
+        defaults={"decimals": 0, "min": 0, "max": 1,
+                  "thresholds": thresholds(("green", None), ("orange", 0.8), ("red", 0.9))}),
+          12, 7)
 
+    v_loki = ds_var("loki", "loki", "Loki")
+    v_loki["hide"] = 2  # nothing to pick on a wall display
+    return dashboard("homelab-today", "Homelab · Today", ["overview", "wall"], L,
+                     variables=[v_loki], time_from="now-24h")
+
+
+# ============================================================ HOSTS & CLUSTER
+
+def overview():
+    L = Layout()
     L.row("Hosts")
     host_q = {
         "A": '100 * (1 - avg by (instance, hostname) (rate(node_cpu_seconds_total{mode="idle"}[5m])))',
@@ -371,6 +460,7 @@ def overview():
         "B": f'pve_cpu_usage_ratio{{{g}}}',
         "C": f'pve_memory_usage_bytes{{{g}}} / pve_memory_size_bytes{{{g}}}',
         "D": f'pve_uptime_seconds{{{g}}}',
+        "E": f'pve_not_backed_up_info{{{g}}}',
     }
     L.add(table("Guests", [
         prom(f'max by (name, type, node) ({guest(e)})',
@@ -378,9 +468,11 @@ def overview():
         transformations=[
             {"id": "merge", "options": {}},
             organize(rename={"name": "Guest", "type": "Type", "node": "Node", "Value #A": "Status",
-                             "Value #B": "CPU", "Value #C": "Memory", "Value #D": "Uptime"},
-                     order=["name", "node", "type", "Value #A", "Value #B", "Value #C", "Value #D"]),
-            keep("Guest", "Node", "Type", "Status", "CPU", "Memory", "Uptime"),
+                             "Value #B": "CPU", "Value #C": "Memory", "Value #D": "Uptime",
+                             "Value #E": "Backup"},
+                     order=["name", "node", "type", "Value #A", "Value #B", "Value #C", "Value #D",
+                            "Value #E"]),
+            keep("Guest", "Node", "Type", "Status", "CPU", "Memory", "Uptime", "Backup"),
             sort_by("Memory"),
         ],
         overrides=[
@@ -390,6 +482,14 @@ def overview():
                     "1": {"text": "running", "color": "green", "index": 1}}}]},
                 {"id": "custom.cellOptions", "value": {"type": "color-text"}},
                 {"id": "custom.width", "value": 80}]},
+            # pve_not_backed_up_info only exists for guests no backup job covers.
+            {"matcher": {"id": "byName", "options": "Backup"}, "properties": [
+                {"id": "mappings", "value": [
+                    {"type": "value", "options": {"1": {"text": "none", "color": "red", "index": 0}}},
+                    {"type": "special", "options": {"match": "null", "result": {
+                        "text": "yes", "color": "green", "index": 1}}}]},
+                {"id": "custom.cellOptions", "value": {"type": "color-text"}},
+                {"id": "custom.width", "value": 75}]},
             width("Node", 110), width("Type", 60), width("Uptime", 95),
             gauge_cell("CPU", "percentunit", 0, 1, ("green", None), ("orange", 0.7), ("red", 0.9)),
             gauge_cell("Memory", "percentunit", 0, 1, ("green", None), ("orange", 0.8), ("red", 0.92)),
@@ -433,7 +533,8 @@ def overview():
         prom('1 - sum(rate(node_cpu_seconds_total{mode="idle",job="node-exporter"}[$__rate_interval])) / count(node_cpu_seconds_total{mode="idle",job="node-exporter"})', "CPU used", ref="C"),
     ], unit="percentunit", defaults={"max": 1}), 12, 9)
 
-    return dashboard("homelab-overview", "Homelab · Overview", ["overview"], L,
+    # uid kept from when this was the overview, so old links still work.
+    return dashboard("homelab-overview", "Homelab · Hosts & Cluster", ["hosts", "kubernetes"], L,
                      time_from="now-24h")
 
 
@@ -479,7 +580,10 @@ def network():
              "{{host}} tx", ref="B"),
     ], unit="Bps", legend="right", defaults={"custom": {}}), 24, 10)
 
-    L.row("HTTP probe latency")
+    L.row("HTTP services")
+    L.add(timeline("HTTP probes — public & internal services", [
+        prom('probe_success{job="blackbox-http",name=~"$site"}', "{{name}}")],
+        desc="Green = answering. Probed every 30s by blackbox-exporter."), 24, 15)
     detail_q = {
         "A": 'probe_success{job="blackbox-http",name=~"$site"}',
         "B": 'probe_http_status_code{job="blackbox-http",name=~"$site"}',
@@ -691,6 +795,225 @@ def crowdsec():
                      variables=[v_loki], time_from="now-24h")
 
 
+# ===================================================================== AI GPUS
+
+AI = 'hostname="AI"'
+LLM = 'job="ai-gpu"'
+# node-exporter names hwmon chips after their PCI path; the card's address ends it.
+GPU_CHIPS = {"r9700": "01:00", "b50": "02:00"}
+GPU_CHIP_RE = 'chip=~".*_0000:(01|02):00_0"'
+TOKS = "suffix: tok/s"
+
+
+def gpu_name(expr):
+    """Add `gpu` (r9700 / b50, the names llm-model-manager uses) to a hwmon series."""
+    for name, pci in GPU_CHIPS.items():
+        expr = f'label_replace({expr}, "gpu", "{name}", "chip", ".*_0000:{pci}_0")'
+    return expr
+
+
+def hwmon(metric, sel=""):
+    """Both cards' hwmon series with `gpu` and the driver's sensor `label` (junction, pkg ...)."""
+    return gpu_name(f'{metric}{{{AI}, {GPU_CHIP_RE}{sel}}} * on (instance, chip, sensor) '
+                    f'group_left (label) node_hwmon_sensor_label{{{AI}}}')
+
+
+def card_power(gpu):
+    """R9700: amdgpu's PPT average. B50: xe reports card energy only, so take its rate."""
+    if gpu == "r9700":
+        return gpu_name(f'node_hwmon_power_average_watt{{{AI}, chip=~".*_0000:01:00_0"}}')
+    return gpu_name(f'rate(node_hwmon_energy_joule_total{{{AI}, chip=~".*_0000:02:00_0", sensor="energy1"}}[2m])')
+
+
+def card_busy(gpu):
+    """amdgpu reports busy %; xe reports idle time per GT (rc = render/compute)."""
+    if gpu == "r9700":
+        return f'ai_gpu_busy_percent{{{LLM}, gpu="r9700"}}'
+    return f'100 * (1 - rate(ai_gpu_gt_idle_seconds_total{{{LLM}, gpu="b50", gt="rc"}}[2m]))'
+
+
+def by_backend(llama, radiance, agg="sum by (model)", fn="rate", window="$__rate_interval"):
+    """The same quantity from llama-server and radiance counters, one series per model."""
+    return (f'{agg} ({fn}({llama}{{{LLM}}}[{window}])) or '
+            f'{agg} ({fn}({radiance}{{{LLM}}}[{window}]))')
+
+
+def speed(tokens, seconds):
+    """Tokens per second of busy time: a rate ratio, blank while the model is idle."""
+    return (f'sum by (model) (rate({tokens}{{{LLM}}}[$__rate_interval])) / '
+            f'(sum by (model) (rate({seconds}{{{LLM}}}[$__rate_interval])) > 0)')
+
+
+def dashed(regex):
+    return {"matcher": {"id": "byRegexp", "options": regex}, "properties": [
+        {"id": "custom.lineStyle", "value": {"fill": "dash", "dash": [10, 10]}},
+        {"id": "custom.fillOpacity", "value": 0}]}
+
+
+def ai_gpus():
+    L = Layout()
+    hot = {"r9700": ("junction", 85, 100), "b50": ("pkg", 85, 95)}
+    for gpu, title in (("r9700", "R9700"), ("b50", "B50")):
+        L.row(f"{title} at a glance")
+        sensor, warn, crit = hot[gpu]
+        chip = f'chip=~".*_0000:{GPU_CHIPS[gpu]}_0"'
+        L.add(stat(f"{title} temperature", [prom(
+            f'max(node_hwmon_temp_celsius{{{AI}, {chip}}})', instant=True)],
+            unit="celsius", graph=True,
+            desc=f"Hottest sensor on the card (the {sensor} sensor is its hot spot).",
+            defaults={"decimals": 0,
+                      "thresholds": thresholds(("green", None), ("orange", warn), ("red", crit))}),
+              6, 5)
+        L.add(stat(f"{title} VRAM used", [prom(
+            f'ai_gpu_vram_used_bytes{{{LLM}, gpu="{gpu}"}} / ai_gpu_vram_total_bytes{{{LLM}, gpu="{gpu}"}}',
+            instant=True)], unit="percentunit", graph=True,
+            desc="radiance reserves nearly the whole card for its KV cache, so ~100% is normal "
+                 "while it is loaded.",
+            defaults={"decimals": 0, "max": 1,
+                      "thresholds": thresholds(("blue", None), ("orange", 0.98))}),
+              6, 5)
+        L.add(stat(f"{title} power", [prom(card_power(gpu), instant=True)], unit="watt", graph=True,
+                   defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "purple"}},
+                   color_mode="value"), 6, 5)
+        L.add(stat(f"{title} busy", [prom(card_busy(gpu), instant=True)], unit="percent", graph=True,
+                   desc="Share of time the GPU was executing work"
+                        + (" (render/compute engines)." if gpu == "b50" else "."),
+                   defaults={"decimals": 0, "min": 0, "max": 100,
+                             "thresholds": thresholds(("blue", None), ("green", 20))}),
+              6, 5)
+
+    L.row("Models")
+    L.add(table("Loaded models", [prom(f'ai_llm_model_loaded{{{LLM}}}', instant=True, table=True)],
+                desc="What llama-swap has loaded right now. gpu=all spans both cards.",
+                defaults={"noValue": "No model loaded"},
+                transformations=[organize(rename={"model": "Model", "backend": "Backend",
+                                                  "gpu": "GPU", "state": "State"}),
+                                 keep("Model", "Backend", "GPU", "State")]), 12, 7)
+    L.add(stat("Tokens generated", [prom(
+        f'sum({by_backend("llamacpp:tokens_predicted_total", "vllm:generation_tokens_total", fn="increase", window="$__range")})'
+        ' or vector(0)', instant=True)],
+        unit="short", color_mode="value", desc="Output tokens across all models in the time range.",
+        defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "green"}}), 6, 7)
+    L.add(stat("Prompt tokens processed", [prom(
+        f'sum({by_backend("llamacpp:prompt_tokens_total", "vllm:prompt_tokens_total", fn="increase", window="$__range")})'
+        ' or vector(0)', instant=True)],
+        unit="short", color_mode="value",
+        desc="Input tokens across all models in the time range (radiance counts cached prompt "
+             "tokens too).",
+        defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "blue"}}), 6, 7)
+    L.add(panel("state-timeline", "Loaded models over time",
+                [prom(f'max by (model) (ai_llm_model_loaded{{{LLM}, state="ready"}})', "{{model}}")],
+                desc="When each model was loaded. Models on different GPUs can overlap; an "
+                     "all-GPU model runs alone.",
+                defaults={"mappings": [{"type": "value", "options": {
+                    "1": {"text": "loaded", "color": "green", "index": 0}}}],
+                    "color": {"mode": "thresholds"}, "thresholds": thresholds(("green", None)),
+                    "custom": {"fillOpacity": 85, "lineWidth": 0}},
+                options={"showValue": "never", "mergeValues": True, "rowHeight": 0.8,
+                         "alignValue": "left", "legend": {"showLegend": False}}), 24, 7)
+
+    L.row("Token speed & usage")
+    L.add(ts("Generation speed", [
+        prom(speed("llamacpp:tokens_predicted_total", "llamacpp:tokens_predicted_seconds_total"),
+             "{{model}}", ref="A"),
+        prom(speed("radiance:decode_tokens_total", "radiance:engine_step_seconds_decode_total"),
+             "{{model}}", ref="B")],
+        unit=TOKS, desc="Output tokens per second while generating (idle time excluded). "
+                        "llama.cpp updates its counters when a request finishes."), 12, 9)
+    L.add(ts("Prompt processing speed", [
+        prom(speed("llamacpp:prompt_tokens_total", "llamacpp:prompt_seconds_total"), "{{model}}",
+             ref="A")],
+        unit=TOKS, desc="llama.cpp prefill speed. For radiance see time to first token below."),
+          12, 9)
+    L.add(ts("Token throughput", [
+        prom(by_backend("llamacpp:tokens_predicted_total", "vllm:generation_tokens_total"),
+             "{{model}} · generated", ref="A"),
+        prom(by_backend("llamacpp:prompt_tokens_total", "vllm:prompt_tokens_total"),
+             "{{model}} · prompt", ref="B")],
+        unit=TOKS, bars=True, desc="Tokens per second averaged over each step, idle included."),
+          12, 9)
+    L.add(ts("Requests in flight", [
+        prom(f'sum by (model) (llamacpp:requests_processing{{{LLM}}}) or '
+             f'sum by (model) (vllm:num_requests_running{{{LLM}}})', "{{model}} · running", ref="A"),
+        prom(f'sum by (model) (llamacpp:requests_deferred{{{LLM}}}) or '
+             f'sum by (model) (vllm:num_requests_waiting{{{LLM}}})', "{{model}} · waiting", ref="B")],
+        defaults={"decimals": 0}), 12, 9)
+    L.add(table("Tokens by model", [
+        prom(by_backend("llamacpp:tokens_predicted_total", "vllm:generation_tokens_total",
+                        fn="increase", window="$__range"), instant=True, table=True, ref="A"),
+        prom(by_backend("llamacpp:prompt_tokens_total", "vllm:prompt_tokens_total",
+                        fn="increase", window="$__range"), instant=True, table=True, ref="B")],
+        desc="Tokens per model in the time range.",
+        transformations=[{"id": "merge", "options": {}},
+                         organize(rename={"model": "Model", "Value #A": "Generated",
+                                          "Value #B": "Prompt"}),
+                         keep("Model", "Generated", "Prompt"), sort_by("Generated")],
+        overrides=[unit_cell("Generated", "short", 0), unit_cell("Prompt", "short", 0)]), 24, 7)
+
+    L.row("radiance (Qwen3.8-27B)")
+    L.add(ts("Time to first token", [
+        prom(f'histogram_quantile(0.5, sum by (le, model) (rate(vllm:time_to_first_token_seconds_bucket{{{LLM}}}[$__rate_interval])))',
+             "{{model}} p50", ref="A"),
+        prom(f'histogram_quantile(0.95, sum by (le, model) (rate(vllm:time_to_first_token_seconds_bucket{{{LLM}}}[$__rate_interval])))',
+             "{{model}} p95", ref="B")], unit="s"), 8, 8)
+    L.add(ts("KV cache used", [prom(f'max by (model) (vllm:kv_cache_usage_perc{{{LLM}}})', "{{model}}")],
+             unit="percentunit", defaults={"max": 1},
+             desc="Share of radiance's KV cache holding live sessions."), 8, 8)
+    L.add(ts("Draft acceptance", [prom(
+        f'sum by (model) (rate(radiance:draft_accepted_total{{{LLM}}}[$__rate_interval])) / '
+        f'(sum by (model) (rate(radiance:draft_tokens_total{{{LLM}}}[$__rate_interval])) > 0)', "{{model}}")],
+        unit="percentunit", defaults={"max": 1},
+        desc="Share of speculative (DFlash2) draft tokens the model accepted: higher is faster."),
+          8, 8)
+
+    L.row("Temperature & cooling")
+    L.add(ts("Temperatures", [prom(hwmon("node_hwmon_temp_celsius"), "{{gpu}} {{label}}")],
+             unit="celsius", legend="table",
+             desc="R9700: edge, junction (hot spot), memory. B50: package, VRAM."), 12, 9)
+    L.add(ts("Fan speed", [prom(gpu_name(f'node_hwmon_fan_rpm{{{AI}, {GPU_CHIP_RE}}}'), "{{gpu}}")],
+             unit="rotrpm"), 12, 9)
+
+    L.row("Power & clocks")
+    L.add(ts("Power draw", [
+        prom(card_power("r9700"), "r9700", ref="A"),
+        prom(card_power("b50"), "b50", ref="B"),
+        prom(gpu_name(f'node_hwmon_power_cap_watt{{{AI}, {GPU_CHIP_RE}}}'), "{{gpu}} cap", ref="C")],
+        unit="watt", overrides=[dashed(".* cap")]), 12, 9)
+    L.add(ts("Clocks", [
+        # amdgpu's freq sensors are already named sclk/mclk, with no separate label to join.
+        prom(gpu_name(f'node_hwmon_freq_freq_mhz{{{AI}, {GPU_CHIP_RE}}}') + ' * 1e6',
+             "{{gpu}} {{sensor}}", ref="A"),
+        prom(f'ai_gpu_clock_mhz{{{LLM}}} * 1e6', "{{gpu}} {{gt}}", ref="B")],
+        unit="hertz", desc="R9700: shader (sclk) and memory (mclk). B50: render/compute (rc) "
+                           "and media (mc) GTs."), 12, 9)
+
+    L.row("Utilization & memory")
+    L.add(ts("GPU busy", [
+        prom(card_busy("r9700"), "r9700", ref="A"),
+        prom(f'ai_gpu_memory_busy_percent{{{LLM}, gpu="r9700"}}', "r9700 memory", ref="B"),
+        prom(card_busy("b50"), "b50 render/compute", ref="C"),
+        prom(f'100 * (1 - rate(ai_gpu_gt_idle_seconds_total{{{LLM}, gpu="b50", gt="mc"}}[2m]))',
+             "b50 media", ref="D")],
+        unit="percent", defaults={"max": 100}), 12, 9)
+    L.add(ts("VRAM used", [
+        prom(f'ai_gpu_vram_used_bytes{{{LLM}}}', "{{gpu}} used", ref="A"),
+        prom(f'ai_gpu_vram_total_bytes{{{LLM}}}', "{{gpu}} total", ref="B")],
+        unit="bytes", overrides=[dashed(".* total")],
+        desc="B50 (xe) has no VRAM counter: its line is the sum of what GPU clients hold."), 12, 9)
+    L.add(ts("VRAM by process", [prom(
+        f'sum by (gpu, process) (ai_gpu_process_vram_bytes{{{LLM}}})', "{{gpu}} · {{process}}")],
+        unit="bytes", stack=True, legend="table",
+        desc="From each process's DRM fdinfo: llama-server, radiance, Immich ML ..."), 12, 9)
+    L.add(ts("AI VM memory", [
+        prom(f'node_memory_MemTotal_bytes{{{AI}}} - node_memory_MemAvailable_bytes{{{AI}}}', "used", ref="A"),
+        prom(f'node_memory_MemTotal_bytes{{{AI}}}', "total", ref="B")],
+        unit="bytes", overrides=[dashed("total")],
+        desc="The VM's own RAM: model loading and radiance's host pool live here."), 12, 9)
+
+    return dashboard("homelab-ai-gpus", "Homelab · AI GPUs", ["gpu", "llm"], L,
+                     time_from="now-6h", refresh="30s")
+
+
 # ======================================================================= main
 
 def write(d):
@@ -712,5 +1035,5 @@ def write(d):
 
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
-    for build in (overview, network, proxy, crowdsec):
+    for build in (today, overview, network, proxy, crowdsec, ai_gpus):
         write(build())

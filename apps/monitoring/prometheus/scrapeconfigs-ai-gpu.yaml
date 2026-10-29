@@ -1,0 +1,23 @@
+---
+# AI VM GPU + LLM exporter (llm-model-manager's docker-compose.metrics.yml): VRAM per card and
+# per process, busy time and clocks for the R9700 and B50, and the /metrics of every model
+# llama-swap has loaded (llama-server and radiance), labelled model/backend/gpu.
+# Temperatures, fans and power come from the AI VM's node-exporter (node-exporter-guests).
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: ai-gpu
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  # Token speed panels need finer steps than the default interval.
+  scrapeInterval: 15s
+  staticConfigs:
+    - targets:
+        - "192.168.1.163:9835"
+      labels:
+        hostname: "AI"
+  relabelings:
+    - targetLabel: job
+      replacement: ai-gpu

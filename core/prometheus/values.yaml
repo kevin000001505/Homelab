@@ -1306,8 +1306,10 @@ grafana:
   forceDeployDashboards: false
 
   ## Deploy default dashboards
-  ##
-  defaultDashboardsEnabled: true
+  ## Off: most of the chart's 24 dashboards duplicated the homelab ones or had no data (AIX,
+  ## macOS, multi-cluster). The few worth keeping are vendored in
+  ## apps/monitoring/grafana-dashboards/stock/.
+  defaultDashboardsEnabled: false
 
   ## Deploy GrafanaDashboard CRDs that reference dashboards from ConfigMaps when grafana-operator is used
   ## These settings control how dashboards are integrated with the Grafana Operator
@@ -1392,6 +1394,11 @@ grafana:
     existingSecret: "grafana-secret"
     userKey: admin-user
     passwordKey: admin-password
+
+  grafana.ini:
+    dashboards:
+      # Homelab · Today (scripts/gen-grafana-dashboards.py), where the sidecar writes it.
+      default_home_dashboard_path: /tmp/dashboards/homelab-today.json
 
   rbac:
     ## If true, Grafana PSPs will be created
