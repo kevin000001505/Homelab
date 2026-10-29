@@ -10,10 +10,11 @@ data:
   homelab-overview.json: |
     {
       "uid": "homelab-overview",
-      "title": "Homelab \u00b7 Overview",
+      "title": "Homelab \u00b7 Hosts & Cluster",
       "tags": [
         "homelab",
-        "overview"
+        "hosts",
+        "kubernetes"
       ],
       "timezone": "browser",
       "editable": true,
@@ -59,7 +60,7 @@ data:
       "panels": [
         {
           "type": "row",
-          "title": "Status",
+          "title": "Hosts",
           "collapsed": false,
           "panels": [],
           "gridPos": {
@@ -69,798 +70,6 @@ data:
             "h": 1
           },
           "id": 1
-        },
-        {
-          "type": "stat",
-          "title": "WAN port forward (from LAN)",
-          "description": "TCP connect to the public IP from inside the LAN (hairpin NAT). DOWN = the router's port forward is gone. UP does not prove outside clients can connect \u2014 some outages only affect traffic from the internet.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "min(probe_success{job=\"blackbox-tcp\"})",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "mappings": [
-                {
-                  "type": "value",
-                  "options": {
-                    "0": {
-                      "text": "DOWN",
-                      "color": "red",
-                      "index": 0
-                    },
-                    "1": {
-                      "text": "UP",
-                      "color": "green",
-                      "index": 1
-                    }
-                  }
-                }
-              ],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "red",
-                    "value": null
-                  },
-                  {
-                    "color": "green",
-                    "value": 1
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "gridPos": {
-            "x": 0,
-            "y": 1,
-            "w": 6,
-            "h": 5
-          },
-          "id": 2
-        },
-        {
-          "type": "stat",
-          "title": "Public sites up",
-          "description": "Share of probed targets currently answering.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum(probe_success{group=\"external\"}) / count(probe_success{group=\"external\"})",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "unit": "percentunit",
-              "decimals": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "red",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 0.9
-                  },
-                  {
-                    "color": "green",
-                    "value": 1
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "gridPos": {
-            "x": 6,
-            "y": 1,
-            "w": 6,
-            "h": 5
-          },
-          "id": 3
-        },
-        {
-          "type": "stat",
-          "title": "Internal services up",
-          "description": "Share of probed targets currently answering.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum(probe_success{group=~\"internal|backend\"}) / count(probe_success{group=~\"internal|backend\"})",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "unit": "percentunit",
-              "decimals": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "red",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 0.9
-                  },
-                  {
-                    "color": "green",
-                    "value": 1
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "gridPos": {
-            "x": 12,
-            "y": 1,
-            "w": 6,
-            "h": 5
-          },
-          "id": 4
-        },
-        {
-          "type": "stat",
-          "title": "LAN hosts reachable",
-          "description": "Share of probed targets currently answering.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum(probe_success{job=\"blackbox-icmp\",group=\"lan\"}) / count(probe_success{job=\"blackbox-icmp\",group=\"lan\"})",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "unit": "percentunit",
-              "decimals": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "red",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 0.9
-                  },
-                  {
-                    "color": "green",
-                    "value": 1
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "gridPos": {
-            "x": 18,
-            "y": 1,
-            "w": 6,
-            "h": 5
-          },
-          "id": 5
-        },
-        {
-          "type": "stat",
-          "title": "Firing alerts",
-          "description": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "count(ALERTS{alertstate=\"firing\",severity=~\"warning|critical\"}) or vector(0)",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 1
-                  },
-                  {
-                    "color": "red",
-                    "value": 3
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "gridPos": {
-            "x": 0,
-            "y": 6,
-            "w": 6,
-            "h": 5
-          },
-          "id": 6
-        },
-        {
-          "type": "stat",
-          "title": "Shortest TLS cert",
-          "description": "Days until the soonest-expiring certificate among probed sites.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "min((probe_ssl_earliest_cert_expiry{job=\"blackbox-http\"} - time()) / 86400)",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "unit": "d",
-              "decimals": 1,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "red",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 2
-                  },
-                  {
-                    "color": "green",
-                    "value": 4
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "gridPos": {
-            "x": 6,
-            "y": 6,
-            "w": 6,
-            "h": 5
-          },
-          "id": 7
-        },
-        {
-          "type": "stat",
-          "title": "Internet ping",
-          "description": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "avg(probe_icmp_duration_seconds{job=\"blackbox-icmp\",group=\"internet\",phase=\"rtt\"})",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "unit": "s",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 0.05
-                  },
-                  {
-                    "color": "red",
-                    "value": 0.1
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "area",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "gridPos": {
-            "x": 12,
-            "y": 6,
-            "w": 6,
-            "h": 5
-          },
-          "id": 8
-        },
-        {
-          "type": "stat",
-          "title": "CrowdSec local bans",
-          "description": "Bans CrowdSec made from your own NPMPlus traffic (excludes community blocklist).",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum(cs_active_decisions{origin!~\"CAPI|lists\"}) or vector(0)",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 10
-                  },
-                  {
-                    "color": "red",
-                    "value": 50
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "gridPos": {
-            "x": 18,
-            "y": 6,
-            "w": 6,
-            "h": 5
-          },
-          "id": 9
-        },
-        {
-          "type": "row",
-          "title": "Service availability",
-          "collapsed": false,
-          "panels": [],
-          "gridPos": {
-            "x": 0,
-            "y": 11,
-            "w": 24,
-            "h": 1
-          },
-          "id": 10
-        },
-        {
-          "type": "state-timeline",
-          "title": "HTTP probes \u2014 public & internal services",
-          "description": "Green = answering. Probed every 30s by blackbox-exporter.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "probe_success{job=\"blackbox-http\"}",
-              "legendFormat": "{{name}}",
-              "refId": "A",
-              "instant": false,
-              "range": true
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "fillOpacity": 85,
-                "lineWidth": 0
-              },
-              "mappings": [
-                {
-                  "type": "value",
-                  "options": {
-                    "0": {
-                      "text": "DOWN",
-                      "color": "red",
-                      "index": 0
-                    },
-                    "1": {
-                      "text": "UP",
-                      "color": "green",
-                      "index": 1
-                    }
-                  }
-                }
-              ],
-              "color": {
-                "mode": "thresholds"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "red",
-                    "value": null
-                  },
-                  {
-                    "color": "green",
-                    "value": 1
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "showValue": "never",
-            "mergeValues": true,
-            "rowHeight": 0.8,
-            "alignValue": "left",
-            "legend": {
-              "showLegend": false
-            }
-          },
-          "gridPos": {
-            "x": 0,
-            "y": 12,
-            "w": 24,
-            "h": 15
-          },
-          "id": 11
-        },
-        {
-          "type": "table",
-          "title": "Firing alerts",
-          "description": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "ALERTS{alertstate=\"firing\",alertname!~\"Watchdog|InfoInhibitor\"}",
-              "legendFormat": "",
-              "refId": "A",
-              "instant": true,
-              "range": false,
-              "format": "table"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {}
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "severity"
-                },
-                "properties": [
-                  {
-                    "id": "custom.width",
-                    "value": 110
-                  },
-                  {
-                    "id": "mappings",
-                    "value": [
-                      {
-                        "type": "value",
-                        "options": {
-                          "critical": {
-                            "color": "red",
-                            "index": 0
-                          },
-                          "warning": {
-                            "color": "orange",
-                            "index": 1
-                          }
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    "id": "custom.cellOptions",
-                    "value": {
-                      "type": "color-text"
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          "options": {
-            "showHeader": true,
-            "cellHeight": "md",
-            "footer": {
-              "show": false
-            }
-          },
-          "transformations": [
-            {
-              "id": "filterFieldsByName",
-              "options": {
-                "include": {
-                  "names": [
-                    "severity",
-                    "alertname",
-                    "name",
-                    "instance",
-                    "job",
-                    "namespace"
-                  ]
-                }
-              }
-            },
-            {
-              "id": "organize",
-              "options": {
-                "renameByName": {},
-                "excludeByName": {},
-                "indexByName": {
-                  "severity": 0,
-                  "alertname": 1,
-                  "name": 2,
-                  "instance": 3,
-                  "job": 4,
-                  "namespace": 5
-                }
-              }
-            }
-          ],
-          "gridPos": {
-            "x": 0,
-            "y": 27,
-            "w": 24,
-            "h": 8
-          },
-          "id": 12
-        },
-        {
-          "type": "row",
-          "title": "Hosts",
-          "collapsed": false,
-          "panels": [],
-          "gridPos": {
-            "x": 0,
-            "y": 35,
-            "w": 24,
-            "h": 1
-          },
-          "id": 13
         },
         {
           "type": "table",
@@ -1137,11 +346,11 @@ data:
           ],
           "gridPos": {
             "x": 0,
-            "y": 36,
+            "y": 1,
             "w": 24,
             "h": 8
           },
-          "id": 14
+          "id": 2
         },
         {
           "type": "timeseries",
@@ -1191,11 +400,11 @@ data:
           },
           "gridPos": {
             "x": 0,
-            "y": 44,
+            "y": 9,
             "w": 12,
             "h": 9
           },
-          "id": 15
+          "id": 3
         },
         {
           "type": "timeseries",
@@ -1245,11 +454,11 @@ data:
           },
           "gridPos": {
             "x": 12,
-            "y": 44,
+            "y": 9,
             "w": 12,
             "h": 9
           },
-          "id": 16
+          "id": 4
         },
         {
           "type": "row",
@@ -1258,11 +467,11 @@ data:
           "panels": [],
           "gridPos": {
             "x": 0,
-            "y": 53,
+            "y": 18,
             "w": 24,
             "h": 1
           },
-          "id": 17
+          "id": 5
         },
         {
           "type": "state-timeline",
@@ -1338,11 +547,11 @@ data:
           },
           "gridPos": {
             "x": 0,
-            "y": 54,
+            "y": 19,
             "w": 8,
             "h": 16
           },
-          "id": 18
+          "id": 6
         },
         {
           "type": "table",
@@ -1400,6 +609,18 @@ data:
               "instant": true,
               "range": false,
               "format": "table"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "max by (name, type, node) (pve_not_backed_up_info{id=~\"(qemu|lxc)/.*\"} * on (id) group_left (name, type, node) pve_guest_info)",
+              "legendFormat": "",
+              "refId": "E",
+              "instant": true,
+              "range": false,
+              "format": "table"
             }
           ],
           "fieldConfig": {
@@ -1442,6 +663,50 @@ data:
                   {
                     "id": "custom.width",
                     "value": 80
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Backup"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "1": {
+                            "text": "none",
+                            "color": "red",
+                            "index": 0
+                          }
+                        }
+                      },
+                      {
+                        "type": "special",
+                        "options": {
+                          "match": "null",
+                          "result": {
+                            "text": "yes",
+                            "color": "green",
+                            "index": 1
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 75
                   }
                 ]
               },
@@ -1613,7 +878,8 @@ data:
                   "Value #A": "Status",
                   "Value #B": "CPU",
                   "Value #C": "Memory",
-                  "Value #D": "Uptime"
+                  "Value #D": "Uptime",
+                  "Value #E": "Backup"
                 },
                 "excludeByName": {},
                 "indexByName": {
@@ -1623,7 +889,8 @@ data:
                   "Value #A": 3,
                   "Value #B": 4,
                   "Value #C": 5,
-                  "Value #D": 6
+                  "Value #D": 6,
+                  "Value #E": 7
                 }
               }
             },
@@ -1638,7 +905,8 @@ data:
                     "Status",
                     "CPU",
                     "Memory",
-                    "Uptime"
+                    "Uptime",
+                    "Backup"
                   ]
                 }
               }
@@ -1657,11 +925,11 @@ data:
           ],
           "gridPos": {
             "x": 8,
-            "y": 54,
+            "y": 19,
             "w": 16,
             "h": 16
           },
-          "id": 19
+          "id": 7
         },
         {
           "type": "table",
@@ -1824,11 +1092,11 @@ data:
           ],
           "gridPos": {
             "x": 0,
-            "y": 70,
+            "y": 35,
             "w": 24,
             "h": 8
           },
-          "id": 20
+          "id": 8
         },
         {
           "type": "row",
@@ -1837,11 +1105,11 @@ data:
           "panels": [],
           "gridPos": {
             "x": 0,
-            "y": 78,
+            "y": 43,
             "w": 24,
             "h": 1
           },
-          "id": 21
+          "id": 9
         },
         {
           "type": "stat",
@@ -1903,11 +1171,11 @@ data:
           },
           "gridPos": {
             "x": 0,
-            "y": 79,
+            "y": 44,
             "w": 6,
             "h": 4
           },
-          "id": 22
+          "id": 10
         },
         {
           "type": "stat",
@@ -1969,11 +1237,11 @@ data:
           },
           "gridPos": {
             "x": 6,
-            "y": 79,
+            "y": 44,
             "w": 6,
             "h": 4
           },
-          "id": 23
+          "id": 11
         },
         {
           "type": "stat",
@@ -2035,11 +1303,11 @@ data:
           },
           "gridPos": {
             "x": 12,
-            "y": 79,
+            "y": 44,
             "w": 6,
             "h": 4
           },
-          "id": 24
+          "id": 12
         },
         {
           "type": "stat",
@@ -2101,11 +1369,11 @@ data:
           },
           "gridPos": {
             "x": 18,
-            "y": 79,
+            "y": 44,
             "w": 6,
             "h": 4
           },
-          "id": 25
+          "id": 13
         },
         {
           "type": "timeseries",
@@ -2154,11 +1422,11 @@ data:
           },
           "gridPos": {
             "x": 0,
-            "y": 83,
+            "y": 48,
             "w": 12,
             "h": 9
           },
-          "id": 26
+          "id": 14
         },
         {
           "type": "timeseries",
@@ -2230,11 +1498,11 @@ data:
           },
           "gridPos": {
             "x": 12,
-            "y": 83,
+            "y": 48,
             "w": 12,
             "h": 9
           },
-          "id": 27
+          "id": 15
         }
       ]
     }

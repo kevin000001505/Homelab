@@ -650,7 +650,7 @@ data:
         },
         {
           "type": "row",
-          "title": "HTTP probe latency",
+          "title": "HTTP services",
           "collapsed": false,
           "panels": [],
           "gridPos": {
@@ -660,6 +660,86 @@ data:
             "h": 1
           },
           "id": 11
+        },
+        {
+          "type": "state-timeline",
+          "title": "HTTP probes \u2014 public & internal services",
+          "description": "Green = answering. Probed every 30s by blackbox-exporter.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "probe_success{job=\"blackbox-http\",name=~\"$site\"}",
+              "legendFormat": "{{name}}",
+              "refId": "A",
+              "instant": false,
+              "range": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "fillOpacity": 85,
+                "lineWidth": 0
+              },
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "DOWN",
+                      "color": "red",
+                      "index": 0
+                    },
+                    "1": {
+                      "text": "UP",
+                      "color": "green",
+                      "index": 1
+                    }
+                  }
+                }
+              ],
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "showValue": "never",
+            "mergeValues": true,
+            "rowHeight": 0.8,
+            "alignValue": "left",
+            "legend": {
+              "showLegend": false
+            }
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 48,
+            "w": 24,
+            "h": 15
+          },
+          "id": 12
         },
         {
           "type": "table",
@@ -991,11 +1071,11 @@ data:
           ],
           "gridPos": {
             "x": 0,
-            "y": 48,
+            "y": 63,
             "w": 24,
             "h": 16
           },
-          "id": 12
+          "id": 13
         },
         {
           "type": "timeseries",
@@ -1050,11 +1130,11 @@ data:
           },
           "gridPos": {
             "x": 0,
-            "y": 64,
+            "y": 79,
             "w": 24,
             "h": 11
           },
-          "id": 13
+          "id": 14
         },
         {
           "type": "timeseries",
@@ -1106,11 +1186,11 @@ data:
           },
           "gridPos": {
             "x": 0,
-            "y": 75,
+            "y": 90,
             "w": 24,
             "h": 9
           },
-          "id": 14
+          "id": 15
         }
       ]
     }

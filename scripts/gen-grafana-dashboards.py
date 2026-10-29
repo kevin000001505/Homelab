@@ -170,8 +170,8 @@ def timeline(title, targets, **kw):
 
 
 def table(title, targets, ds=PROM, **kw):
-    kw.setdefault("options", {}).update(showHeader=True, cellHeight="md",
-                                        footer={"show": False})
+    opts = kw.setdefault("options", {})
+    opts.update(showHeader=True, cellHeight=opts.get("cellHeight", "md"), footer={"show": False})
     return panel("table", title, targets, ds=ds, **kw)
 
 
@@ -272,65 +272,154 @@ def dashboard(uid, title, tags, layout, variables=(), time_from="now-6h", refres
     }
 
 
-# =================================================================== OVERVIEW
+# ====================================================================== TODAY
 
-def overview():
+# Root filesystem usage per host, as a 0-1 ratio.
+ROOT_DISK = ('1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} '
+             '/ node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}')
+PVE_STORAGE = ('(pve_disk_usage_bytes{id=~"storage/.*"} / pve_disk_size_bytes{id=~"storage/.*"}) '
+               '* on (id) group_left (node, storage) pve_storage_info')
+NPM_ALL = '{job="nginx", host="npmplus", status=~".+"}'
+
+
+def zero_good(warn=1, crit=1):
+    """Stat defaults for a problem count: green at zero, orange from warn, red from crit."""
+    return {"decimals": 0,
+            "thresholds": thresholds(("green", None), ("orange", warn), ("red", crit))}
+
+
+def fullest_disks():
+    """Host root disks and Proxmox storages in one series set, labelled `name`."""
+    return (f'max by (name) (label_join({host(ROOT_DISK)}, "name", "", "host")) or '
+            f'max by (name) (label_join({PVE_STORAGE}, "name", " / ", "node", "storage"))')
+
+
+def today():
+    """The wall display: one 1080p screen, green when there is nothing to do.
+
+    Rows of tiles, top to bottom: broken right now, the last 24 hours, slow-burning
+    housekeeping. Below them, the detail behind the tiles. Every tile except the
+    traffic counters is a problem count, so anything not green needs a look.
+    """
     L = Layout()
-    L.row("Status")
-    L.add(stat("WAN port forward (from LAN)",
-               [prom('min(probe_success{job="blackbox-tcp"})', instant=True)],
-               desc="TCP connect to the public IP from inside the LAN (hairpin NAT). DOWN = "
-                    "the router's port forward is gone. UP does not prove outside clients "
-                    "can connect — some outages only affect traffic from the internet.",
+
+    # Right now
+    L.add(stat("Firing alerts", [prom(
+        'count(ALERTS{alertstate="firing",severity=~"warning|critical"}) or vector(0)', instant=True)],
+        desc="Warning and critical alerts. The table below lists them.",
+        defaults=zero_good(1, 3)), 6, 4)
+    L.add(stat("Services down", [prom(
+        'count(probe_success{job="blackbox-http"} == 0) or vector(0)', instant=True)],
+        desc="Public and internal sites whose HTTP probe fails right now.",
+        defaults=zero_good()), 6, 4)
+    L.add(stat("LAN hosts unreachable", [prom(
+        'count(probe_success{job="blackbox-icmp",group="lan"} == 0) or vector(0)', instant=True)],
+        desc="Hosts on the LAN that do not answer ping.", defaults=zero_good()), 6, 4)
+    L.add(stat("WAN port forward", [prom('min(probe_success{job="blackbox-tcp"})', instant=True)],
+               desc="TCP connect to the public IP from inside the LAN. DOWN = the router's port "
+                    "forward is gone.",
                defaults={"mappings": UPDOWN, "thresholds": thresholds(("red", None), ("green", 1))}),
-          6, 5)
-    for title, sel in [("Public sites up", 'group="external"'),
-                       ("Internal services up", 'group=~"internal|backend"'),
-                       ("LAN hosts reachable", 'job="blackbox-icmp",group="lan"')]:
-        L.add(stat(title, [prom(
-            f'sum(probe_success{{{sel}}}) / count(probe_success{{{sel}}})', instant=True)],
-            unit="percentunit", graph=False,
-            desc="Share of probed targets currently answering.",
-            defaults={"decimals": 0,
-                      "thresholds": thresholds(("red", None), ("orange", 0.9), ("green", 1))}),
-              6, 5)
-    L.add(stat("Firing alerts",
-               [prom('count(ALERTS{alertstate="firing",severity=~"warning|critical"}) or vector(0)',
-                     instant=True)],
-               defaults={"thresholds": thresholds(("green", None), ("orange", 1), ("red", 3))}),
-          6, 5)
-    L.add(stat("Shortest TLS cert", [prom(
+          6, 4)
+
+    # Last 24 hours
+    L.add(stat("Requests (24h)", [loki(f'sum(count_over_time({NPM_ALL} [24h]))', instant=True)],
+               ds=LOKI, unit="short", color_mode="value",
+               desc="Requests NPMPlus served. It fronts every site, k3s apps included.",
+               defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "blue"}}), 6, 4)
+    L.add(stat("Server errors (24h)", [loki(
+        'sum(count_over_time({job="nginx", host="npmplus", status=~"5.."} [24h]))', instant=True)],
+        ds=LOKI, desc="5xx responses from NPMPlus. Requests per hour below shows when; "
+                      "Reverse Proxy & Requests shows which host.",
+        defaults={"noValue": "0", **zero_good(1, 50)}), 6, 4)
+    L.add(stat("IPs banned (24h)", [loki(
+        f'count(sum by (ip) (count_over_time({CS_BAN} [24h])))', instant=True)],
+        ds=LOKI, color_mode="value",
+        desc="Distinct IPs CrowdSec banned from your own traffic. A jump means someone is "
+             "probing you; the CrowdSec dashboard has who and why.",
+        defaults={"noValue": "0", **zero_good(20, 100)}), 6, 4)
+    L.add(stat("Internet ping", [prom(
+        'avg(probe_icmp_duration_seconds{job="blackbox-icmp",group="internet",phase="rtt"})')],
+        unit="s", graph=True,
+        defaults={"thresholds": thresholds(("green", None), ("orange", 0.05), ("red", 0.1))}), 6, 4)
+
+    # Housekeeping: slow problems that never page anyone
+    L.add(stat("Fullest disk", [prom(f'max({fullest_disks()})', instant=True)],
+               unit="percentunit", desc="Fullest host root disk or Proxmox storage. The list "
+                                        "below shows the top seven.",
+               defaults={"decimals": 0, "thresholds": thresholds(
+                   ("green", None), ("orange", 0.8), ("red", 0.9))}), 6, 4)
+    L.add(stat("Soonest TLS cert", [prom(
         'min((probe_ssl_earliest_cert_expiry{job="blackbox-http"} - time()) / 86400)', instant=True)],
         unit="d", desc="Days until the soonest-expiring certificate among probed sites.",
         defaults={"decimals": 1,
-                  "thresholds": thresholds(("red", None), ("orange", 2), ("green", 4))}),
-          6, 5)
-    L.add(stat("Internet ping", [prom(
-        'avg(probe_icmp_duration_seconds{job="blackbox-icmp",group="internet",phase="rtt"})',
-        instant=True)], unit="s", graph=True,
-        defaults={"thresholds": thresholds(("green", None), ("orange", 0.05), ("red", 0.1))}),
-          6, 5)
-    L.add(stat("CrowdSec local bans", [prom(
-        'sum(cs_active_decisions{origin!~"CAPI|lists"}) or vector(0)', instant=True)],
-        desc="Bans CrowdSec made from your own NPMPlus traffic (excludes community blocklist).",
-        defaults={"thresholds": thresholds(("green", None), ("orange", 10), ("red", 50))}),
-          6, 5)
+                  "thresholds": thresholds(("red", None), ("orange", 2), ("green", 4))}), 6, 4)
+    L.add(stat("Disks failing SMART", [prom(
+        'count(smartmon_device_smart_healthy{job="proxmox-node"} == 0) or vector(0)', instant=True)],
+        desc="Physical disks on the Proxmox host whose SMART self-assessment fails. VM disks "
+             "are virtual and have no SMART data.",
+        defaults=zero_good()), 6, 4)
+    L.add(stat("Guests without backup", [prom('max(pve_not_backed_up_total) or vector(0)',
+                                              instant=True)],
+               desc="Proxmox VMs and LXCs that no backup job covers. Hosts & Cluster lists them.",
+               defaults=zero_good(1, 99)), 6, 4)
 
-    L.row("Service availability")
-    L.add(timeline("HTTP probes — public & internal services", [
-        prom('probe_success{job="blackbox-http"}', "{{name}}")],
-        desc="Green = answering. Probed every 30s by blackbox-exporter."), 24, 15)
-    L.add(table("Firing alerts", [prom(
-        'ALERTS{alertstate="firing",alertname!~"Watchdog|InfoInhibitor"}', instant=True, table=True)],
-        transformations=[keep("severity", "alertname", "name", "instance", "job", "namespace")]
-        + [organize(order=["severity", "alertname", "name", "instance", "job", "namespace"])],
+    # The detail behind the tiles
+    # One `target` column from the most telling label the alert has (later labels win).
+    target = 'ALERTS{alertstate="firing",severity=~"warning|critical"}'
+    for lbl in ("pod", "instance", "deployment", "name"):
+        target = f'label_replace({target}, "target", "$1", "{lbl}", "(.+)")'
+    L.add(table("Firing alerts", [prom(f'sort_desc({target})', instant=True, table=True)],
+        options={"cellHeight": "sm"},
+        transformations=[keep("severity", "alertname", "target", "namespace"),
+                         organize(order=["severity", "alertname", "target", "namespace"])],
         overrides=[{"matcher": {"id": "byName", "options": "severity"}, "properties": [
-            {"id": "custom.width", "value": 110},
+            {"id": "custom.width", "value": 90},
             {"id": "mappings", "value": [{"type": "value", "options": {
                 "critical": {"color": "red", "index": 0},
                 "warning": {"color": "orange", "index": 1}}}]},
-            {"id": "custom.cellOptions", "value": {"type": "color-text"}}]}]), 24, 8)
+            {"id": "custom.cellOptions", "value": {"type": "color-text"}}]},
+            width("alertname", 260)]), 12, 7)
+    per_hour = ts("Requests per hour", [
+        loki(f'sum(count_over_time({{job="nginx", host="npmplus", status=~"{c}.."}} [1h]))',
+             f"{c}xx", ref=chr(63 + int(c))) for c in "2345"],
+        unit="short", bars=True, ds=LOKI,
+        desc="NPMPlus responses per hour by status class. Red is server errors.",
+        overrides=[{"matcher": {"id": "byName", "options": f"{c}xx"},
+                    "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": col}}]}
+                   for c, col in [("2", "green"), ("3", "blue"), ("4", "orange"), ("5", "red")]])
+    per_hour["interval"] = "1h"
+    L.add(per_hour, 12, 7)
+    # Seven bars fill the 1080p screen; more would scroll.
+    bar_list = {"orientation": "horizontal", "displayMode": "basic", "showUnfilled": True,
+                "valueMode": "text", "namePlacement": "left", "minVizHeight": 16,
+                "maxVizHeight": 24, "reduceOptions": {"calcs": ["lastNotNull"], "fields": "",
+                                                      "values": False}}
+    L.add(panel("bargauge", "Downtime in the last 24h", [prom(
+        'sort(bottomk(7, min by (name) (avg_over_time(probe_success{job=~"blackbox-http|blackbox-icmp"}[24h])) < 1))',
+        "{{name}}", instant=True)],
+        unit="percentunit", options=dict(bar_list),
+        desc="Uptime of every site and LAN host that missed at least one probe today, worst first.",
+        defaults={"noValue": "Everything answered all day", "decimals": 1, "min": 0, "max": 1,
+                  "thresholds": thresholds(("red", None), ("orange", 0.9), ("green", 0.99))}),
+          12, 7)
+    L.add(panel("bargauge", "Fullest disks", [prom(
+        f'sort_desc(topk(7, {fullest_disks()}))', "{{name}}", instant=True)],
+        unit="percentunit", options=dict(bar_list),
+        desc="Host root disks and Proxmox storages (node / storage).",
+        defaults={"decimals": 0, "min": 0, "max": 1,
+                  "thresholds": thresholds(("green", None), ("orange", 0.8), ("red", 0.9))}),
+          12, 7)
 
+    v_loki = ds_var("loki", "loki", "Loki")
+    v_loki["hide"] = 2  # nothing to pick on a wall display
+    return dashboard("homelab-today", "Homelab · Today", ["overview", "wall"], L,
+                     variables=[v_loki], time_from="now-24h")
+
+
+# ============================================================ HOSTS & CLUSTER
+
+def overview():
+    L = Layout()
     L.row("Hosts")
     host_q = {
         "A": '100 * (1 - avg by (instance, hostname) (rate(node_cpu_seconds_total{mode="idle"}[5m])))',
@@ -371,6 +460,7 @@ def overview():
         "B": f'pve_cpu_usage_ratio{{{g}}}',
         "C": f'pve_memory_usage_bytes{{{g}}} / pve_memory_size_bytes{{{g}}}',
         "D": f'pve_uptime_seconds{{{g}}}',
+        "E": f'pve_not_backed_up_info{{{g}}}',
     }
     L.add(table("Guests", [
         prom(f'max by (name, type, node) ({guest(e)})',
@@ -378,9 +468,11 @@ def overview():
         transformations=[
             {"id": "merge", "options": {}},
             organize(rename={"name": "Guest", "type": "Type", "node": "Node", "Value #A": "Status",
-                             "Value #B": "CPU", "Value #C": "Memory", "Value #D": "Uptime"},
-                     order=["name", "node", "type", "Value #A", "Value #B", "Value #C", "Value #D"]),
-            keep("Guest", "Node", "Type", "Status", "CPU", "Memory", "Uptime"),
+                             "Value #B": "CPU", "Value #C": "Memory", "Value #D": "Uptime",
+                             "Value #E": "Backup"},
+                     order=["name", "node", "type", "Value #A", "Value #B", "Value #C", "Value #D",
+                            "Value #E"]),
+            keep("Guest", "Node", "Type", "Status", "CPU", "Memory", "Uptime", "Backup"),
             sort_by("Memory"),
         ],
         overrides=[
@@ -390,6 +482,14 @@ def overview():
                     "1": {"text": "running", "color": "green", "index": 1}}}]},
                 {"id": "custom.cellOptions", "value": {"type": "color-text"}},
                 {"id": "custom.width", "value": 80}]},
+            # pve_not_backed_up_info only exists for guests no backup job covers.
+            {"matcher": {"id": "byName", "options": "Backup"}, "properties": [
+                {"id": "mappings", "value": [
+                    {"type": "value", "options": {"1": {"text": "none", "color": "red", "index": 0}}},
+                    {"type": "special", "options": {"match": "null", "result": {
+                        "text": "yes", "color": "green", "index": 1}}}]},
+                {"id": "custom.cellOptions", "value": {"type": "color-text"}},
+                {"id": "custom.width", "value": 75}]},
             width("Node", 110), width("Type", 60), width("Uptime", 95),
             gauge_cell("CPU", "percentunit", 0, 1, ("green", None), ("orange", 0.7), ("red", 0.9)),
             gauge_cell("Memory", "percentunit", 0, 1, ("green", None), ("orange", 0.8), ("red", 0.92)),
@@ -433,7 +533,8 @@ def overview():
         prom('1 - sum(rate(node_cpu_seconds_total{mode="idle",job="node-exporter"}[$__rate_interval])) / count(node_cpu_seconds_total{mode="idle",job="node-exporter"})', "CPU used", ref="C"),
     ], unit="percentunit", defaults={"max": 1}), 12, 9)
 
-    return dashboard("homelab-overview", "Homelab · Overview", ["overview"], L,
+    # uid kept from when this was the overview, so old links still work.
+    return dashboard("homelab-overview", "Homelab · Hosts & Cluster", ["hosts", "kubernetes"], L,
                      time_from="now-24h")
 
 
@@ -479,7 +580,10 @@ def network():
              "{{host}} tx", ref="B"),
     ], unit="Bps", legend="right", defaults={"custom": {}}), 24, 10)
 
-    L.row("HTTP probe latency")
+    L.row("HTTP services")
+    L.add(timeline("HTTP probes — public & internal services", [
+        prom('probe_success{job="blackbox-http",name=~"$site"}', "{{name}}")],
+        desc="Green = answering. Probed every 30s by blackbox-exporter."), 24, 15)
     detail_q = {
         "A": 'probe_success{job="blackbox-http",name=~"$site"}',
         "B": 'probe_http_status_code{job="blackbox-http",name=~"$site"}',
@@ -931,5 +1035,5 @@ def write(d):
 
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
-    for build in (overview, network, proxy, crowdsec, ai_gpus):
+    for build in (today, overview, network, proxy, crowdsec, ai_gpus):
         write(build())
