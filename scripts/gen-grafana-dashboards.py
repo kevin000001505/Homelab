@@ -691,6 +691,225 @@ def crowdsec():
                      variables=[v_loki], time_from="now-24h")
 
 
+# ===================================================================== AI GPUS
+
+AI = 'hostname="AI"'
+LLM = 'job="ai-gpu"'
+# node-exporter names hwmon chips after their PCI path; the card's address ends it.
+GPU_CHIPS = {"r9700": "01:00", "b50": "02:00"}
+GPU_CHIP_RE = 'chip=~".*_0000:(01|02):00_0"'
+TOKS = "suffix: tok/s"
+
+
+def gpu_name(expr):
+    """Add `gpu` (r9700 / b50, the names llm-model-manager uses) to a hwmon series."""
+    for name, pci in GPU_CHIPS.items():
+        expr = f'label_replace({expr}, "gpu", "{name}", "chip", ".*_0000:{pci}_0")'
+    return expr
+
+
+def hwmon(metric, sel=""):
+    """Both cards' hwmon series with `gpu` and the driver's sensor `label` (junction, pkg ...)."""
+    return gpu_name(f'{metric}{{{AI}, {GPU_CHIP_RE}{sel}}} * on (instance, chip, sensor) '
+                    f'group_left (label) node_hwmon_sensor_label{{{AI}}}')
+
+
+def card_power(gpu):
+    """R9700: amdgpu's PPT average. B50: xe reports card energy only, so take its rate."""
+    if gpu == "r9700":
+        return gpu_name(f'node_hwmon_power_average_watt{{{AI}, chip=~".*_0000:01:00_0"}}')
+    return gpu_name(f'rate(node_hwmon_energy_joule_total{{{AI}, chip=~".*_0000:02:00_0", sensor="energy1"}}[2m])')
+
+
+def card_busy(gpu):
+    """amdgpu reports busy %; xe reports idle time per GT (rc = render/compute)."""
+    if gpu == "r9700":
+        return f'ai_gpu_busy_percent{{{LLM}, gpu="r9700"}}'
+    return f'100 * (1 - rate(ai_gpu_gt_idle_seconds_total{{{LLM}, gpu="b50", gt="rc"}}[2m]))'
+
+
+def by_backend(llama, radiance, agg="sum by (model)", fn="rate", window="$__rate_interval"):
+    """The same quantity from llama-server and radiance counters, one series per model."""
+    return (f'{agg} ({fn}({llama}{{{LLM}}}[{window}])) or '
+            f'{agg} ({fn}({radiance}{{{LLM}}}[{window}]))')
+
+
+def speed(tokens, seconds):
+    """Tokens per second of busy time: a rate ratio, blank while the model is idle."""
+    return (f'sum by (model) (rate({tokens}{{{LLM}}}[$__rate_interval])) / '
+            f'(sum by (model) (rate({seconds}{{{LLM}}}[$__rate_interval])) > 0)')
+
+
+def dashed(regex):
+    return {"matcher": {"id": "byRegexp", "options": regex}, "properties": [
+        {"id": "custom.lineStyle", "value": {"fill": "dash", "dash": [10, 10]}},
+        {"id": "custom.fillOpacity", "value": 0}]}
+
+
+def ai_gpus():
+    L = Layout()
+    hot = {"r9700": ("junction", 85, 100), "b50": ("pkg", 85, 95)}
+    for gpu, title in (("r9700", "R9700"), ("b50", "B50")):
+        L.row(f"{title} at a glance")
+        sensor, warn, crit = hot[gpu]
+        chip = f'chip=~".*_0000:{GPU_CHIPS[gpu]}_0"'
+        L.add(stat(f"{title} temperature", [prom(
+            f'max(node_hwmon_temp_celsius{{{AI}, {chip}}})', instant=True)],
+            unit="celsius", graph=True,
+            desc=f"Hottest sensor on the card (the {sensor} sensor is its hot spot).",
+            defaults={"decimals": 0,
+                      "thresholds": thresholds(("green", None), ("orange", warn), ("red", crit))}),
+              6, 5)
+        L.add(stat(f"{title} VRAM used", [prom(
+            f'ai_gpu_vram_used_bytes{{{LLM}, gpu="{gpu}"}} / ai_gpu_vram_total_bytes{{{LLM}, gpu="{gpu}"}}',
+            instant=True)], unit="percentunit", graph=True,
+            desc="radiance reserves nearly the whole card for its KV cache, so ~100% is normal "
+                 "while it is loaded.",
+            defaults={"decimals": 0, "max": 1,
+                      "thresholds": thresholds(("blue", None), ("orange", 0.98))}),
+              6, 5)
+        L.add(stat(f"{title} power", [prom(card_power(gpu), instant=True)], unit="watt", graph=True,
+                   defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "purple"}},
+                   color_mode="value"), 6, 5)
+        L.add(stat(f"{title} busy", [prom(card_busy(gpu), instant=True)], unit="percent", graph=True,
+                   desc="Share of time the GPU was executing work"
+                        + (" (render/compute engines)." if gpu == "b50" else "."),
+                   defaults={"decimals": 0, "min": 0, "max": 100,
+                             "thresholds": thresholds(("blue", None), ("green", 20))}),
+              6, 5)
+
+    L.row("Models")
+    L.add(table("Loaded models", [prom(f'ai_llm_model_loaded{{{LLM}}}', instant=True, table=True)],
+                desc="What llama-swap has loaded right now. gpu=all spans both cards.",
+                defaults={"noValue": "No model loaded"},
+                transformations=[organize(rename={"model": "Model", "backend": "Backend",
+                                                  "gpu": "GPU", "state": "State"}),
+                                 keep("Model", "Backend", "GPU", "State")]), 12, 7)
+    L.add(stat("Tokens generated", [prom(
+        f'sum({by_backend("llamacpp:tokens_predicted_total", "vllm:generation_tokens_total", fn="increase", window="$__range")})'
+        ' or vector(0)', instant=True)],
+        unit="short", color_mode="value", desc="Output tokens across all models in the time range.",
+        defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "green"}}), 6, 7)
+    L.add(stat("Prompt tokens processed", [prom(
+        f'sum({by_backend("llamacpp:prompt_tokens_total", "vllm:prompt_tokens_total", fn="increase", window="$__range")})'
+        ' or vector(0)', instant=True)],
+        unit="short", color_mode="value",
+        desc="Input tokens across all models in the time range (radiance counts cached prompt "
+             "tokens too).",
+        defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "blue"}}), 6, 7)
+    L.add(panel("state-timeline", "Loaded models over time",
+                [prom(f'max by (model) (ai_llm_model_loaded{{{LLM}, state="ready"}})', "{{model}}")],
+                desc="When each model was loaded. Models on different GPUs can overlap; an "
+                     "all-GPU model runs alone.",
+                defaults={"mappings": [{"type": "value", "options": {
+                    "1": {"text": "loaded", "color": "green", "index": 0}}}],
+                    "color": {"mode": "thresholds"}, "thresholds": thresholds(("green", None)),
+                    "custom": {"fillOpacity": 85, "lineWidth": 0}},
+                options={"showValue": "never", "mergeValues": True, "rowHeight": 0.8,
+                         "alignValue": "left", "legend": {"showLegend": False}}), 24, 7)
+
+    L.row("Token speed & usage")
+    L.add(ts("Generation speed", [
+        prom(speed("llamacpp:tokens_predicted_total", "llamacpp:tokens_predicted_seconds_total"),
+             "{{model}}", ref="A"),
+        prom(speed("radiance:decode_tokens_total", "radiance:engine_step_seconds_decode_total"),
+             "{{model}}", ref="B")],
+        unit=TOKS, desc="Output tokens per second while generating (idle time excluded). "
+                        "llama.cpp updates its counters when a request finishes."), 12, 9)
+    L.add(ts("Prompt processing speed", [
+        prom(speed("llamacpp:prompt_tokens_total", "llamacpp:prompt_seconds_total"), "{{model}}",
+             ref="A")],
+        unit=TOKS, desc="llama.cpp prefill speed. For radiance see time to first token below."),
+          12, 9)
+    L.add(ts("Token throughput", [
+        prom(by_backend("llamacpp:tokens_predicted_total", "vllm:generation_tokens_total"),
+             "{{model}} · generated", ref="A"),
+        prom(by_backend("llamacpp:prompt_tokens_total", "vllm:prompt_tokens_total"),
+             "{{model}} · prompt", ref="B")],
+        unit=TOKS, bars=True, desc="Tokens per second averaged over each step, idle included."),
+          12, 9)
+    L.add(ts("Requests in flight", [
+        prom(f'sum by (model) (llamacpp:requests_processing{{{LLM}}}) or '
+             f'sum by (model) (vllm:num_requests_running{{{LLM}}})', "{{model}} · running", ref="A"),
+        prom(f'sum by (model) (llamacpp:requests_deferred{{{LLM}}}) or '
+             f'sum by (model) (vllm:num_requests_waiting{{{LLM}}})', "{{model}} · waiting", ref="B")],
+        defaults={"decimals": 0}), 12, 9)
+    L.add(table("Tokens by model", [
+        prom(by_backend("llamacpp:tokens_predicted_total", "vllm:generation_tokens_total",
+                        fn="increase", window="$__range"), instant=True, table=True, ref="A"),
+        prom(by_backend("llamacpp:prompt_tokens_total", "vllm:prompt_tokens_total",
+                        fn="increase", window="$__range"), instant=True, table=True, ref="B")],
+        desc="Tokens per model in the time range.",
+        transformations=[{"id": "merge", "options": {}},
+                         organize(rename={"model": "Model", "Value #A": "Generated",
+                                          "Value #B": "Prompt"}),
+                         keep("Model", "Generated", "Prompt"), sort_by("Generated")],
+        overrides=[unit_cell("Generated", "short", 0), unit_cell("Prompt", "short", 0)]), 24, 7)
+
+    L.row("radiance (Qwen3.8-27B)")
+    L.add(ts("Time to first token", [
+        prom(f'histogram_quantile(0.5, sum by (le, model) (rate(vllm:time_to_first_token_seconds_bucket{{{LLM}}}[$__rate_interval])))',
+             "{{model}} p50", ref="A"),
+        prom(f'histogram_quantile(0.95, sum by (le, model) (rate(vllm:time_to_first_token_seconds_bucket{{{LLM}}}[$__rate_interval])))',
+             "{{model}} p95", ref="B")], unit="s"), 8, 8)
+    L.add(ts("KV cache used", [prom(f'max by (model) (vllm:kv_cache_usage_perc{{{LLM}}})', "{{model}}")],
+             unit="percentunit", defaults={"max": 1},
+             desc="Share of radiance's KV cache holding live sessions."), 8, 8)
+    L.add(ts("Draft acceptance", [prom(
+        f'sum by (model) (rate(radiance:draft_accepted_total{{{LLM}}}[$__rate_interval])) / '
+        f'(sum by (model) (rate(radiance:draft_tokens_total{{{LLM}}}[$__rate_interval])) > 0)', "{{model}}")],
+        unit="percentunit", defaults={"max": 1},
+        desc="Share of speculative (DFlash2) draft tokens the model accepted: higher is faster."),
+          8, 8)
+
+    L.row("Temperature & cooling")
+    L.add(ts("Temperatures", [prom(hwmon("node_hwmon_temp_celsius"), "{{gpu}} {{label}}")],
+             unit="celsius", legend="table",
+             desc="R9700: edge, junction (hot spot), memory. B50: package, VRAM."), 12, 9)
+    L.add(ts("Fan speed", [prom(gpu_name(f'node_hwmon_fan_rpm{{{AI}, {GPU_CHIP_RE}}}'), "{{gpu}}")],
+             unit="rotrpm"), 12, 9)
+
+    L.row("Power & clocks")
+    L.add(ts("Power draw", [
+        prom(card_power("r9700"), "r9700", ref="A"),
+        prom(card_power("b50"), "b50", ref="B"),
+        prom(gpu_name(f'node_hwmon_power_cap_watt{{{AI}, {GPU_CHIP_RE}}}'), "{{gpu}} cap", ref="C")],
+        unit="watt", overrides=[dashed(".* cap")]), 12, 9)
+    L.add(ts("Clocks", [
+        # amdgpu's freq sensors are already named sclk/mclk, with no separate label to join.
+        prom(gpu_name(f'node_hwmon_freq_freq_mhz{{{AI}, {GPU_CHIP_RE}}}') + ' * 1e6',
+             "{{gpu}} {{sensor}}", ref="A"),
+        prom(f'ai_gpu_clock_mhz{{{LLM}}} * 1e6', "{{gpu}} {{gt}}", ref="B")],
+        unit="hertz", desc="R9700: shader (sclk) and memory (mclk). B50: render/compute (rc) "
+                           "and media (mc) GTs."), 12, 9)
+
+    L.row("Utilization & memory")
+    L.add(ts("GPU busy", [
+        prom(card_busy("r9700"), "r9700", ref="A"),
+        prom(f'ai_gpu_memory_busy_percent{{{LLM}, gpu="r9700"}}', "r9700 memory", ref="B"),
+        prom(card_busy("b50"), "b50 render/compute", ref="C"),
+        prom(f'100 * (1 - rate(ai_gpu_gt_idle_seconds_total{{{LLM}, gpu="b50", gt="mc"}}[2m]))',
+             "b50 media", ref="D")],
+        unit="percent", defaults={"max": 100}), 12, 9)
+    L.add(ts("VRAM used", [
+        prom(f'ai_gpu_vram_used_bytes{{{LLM}}}', "{{gpu}} used", ref="A"),
+        prom(f'ai_gpu_vram_total_bytes{{{LLM}}}', "{{gpu}} total", ref="B")],
+        unit="bytes", overrides=[dashed(".* total")],
+        desc="B50 (xe) has no VRAM counter: its line is the sum of what GPU clients hold."), 12, 9)
+    L.add(ts("VRAM by process", [prom(
+        f'sum by (gpu, process) (ai_gpu_process_vram_bytes{{{LLM}}})', "{{gpu}} · {{process}}")],
+        unit="bytes", stack=True, legend="table",
+        desc="From each process's DRM fdinfo: llama-server, radiance, Immich ML ..."), 12, 9)
+    L.add(ts("AI VM memory", [
+        prom(f'node_memory_MemTotal_bytes{{{AI}}} - node_memory_MemAvailable_bytes{{{AI}}}', "used", ref="A"),
+        prom(f'node_memory_MemTotal_bytes{{{AI}}}', "total", ref="B")],
+        unit="bytes", overrides=[dashed("total")],
+        desc="The VM's own RAM: model loading and radiance's host pool live here."), 12, 9)
+
+    return dashboard("homelab-ai-gpus", "Homelab · AI GPUs", ["gpu", "llm"], L,
+                     time_from="now-6h", refresh="30s")
+
+
 # ======================================================================= main
 
 def write(d):
@@ -712,5 +931,5 @@ def write(d):
 
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
-    for build in (overview, network, proxy, crowdsec):
+    for build in (overview, network, proxy, crowdsec, ai_gpus):
         write(build())
