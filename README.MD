@@ -1,8 +1,6 @@
 # Homelab — GitOps-Managed Kubernetes Cluster
 
-A bare-metal Kubernetes cluster running on **Talos Linux**, fully declarative and reconciled by **ArgoCD**. Every workload, network policy, certificate, and dashboard in this cluster is defined in this repository — there is no `kubectl apply` in the deployment path and no SSH access to the nodes.
-
-This repo is the single source of truth. If it isn't committed here, it isn't running.
+A two-node **k3s** cluster running on Debian VMs in a Proxmox homelab, with workloads reconciled by **ArgoCD**. Every workload, ingress, certificate, and dashboard is defined in this repository. Application workloads deploy only through git; cluster primitives under `core/` and out-of-band secrets are still applied by hand (see [Known gaps](#known-gaps)).
 
 ---
 
@@ -16,34 +14,32 @@ I wanted an environment to practice the operational side of infrastructure rathe
 
 | Layer | Choice | Rationale |
 |---|---|---|
-| **OS** | Talos Linux v1.13.3 | Immutable, API-driven, no shell and no SSH daemon. Config drift is structurally impossible — the node is reconciled from a machine config, not patched in place. |
-| **Kubernetes** | v1.36.1 | Cluster `talos-homelab`, single control plane + worker, `etcd` on the control plane. |
-| **GitOps** | ArgoCD | 8 `Application` resources; Helm charts and their values are composed from separate sources. |
-| **Ingress** | Traefik (bundled, configured via `HelmChartConfig`) | Chart values are patched declaratively rather than forked. |
-| **Load balancing** | MetalLB (L2) | Pool `192.168.1.60-89` hands real LAN IPs to `LoadBalancer` services. |
+| **Hosts** | Debian 13 VMs on a 2-node Proxmox cluster | `k3s-cp` (192.168.1.15) and `k3s-worker` (192.168.1.20) run on different Proxmox hosts, so one host failure doesn't take out both nodes. |
+| **Kubernetes** | k3s v1.35.5+k3s1 | One server (`k3s-cp`, embedded SQLite datastore via kine) and one agent (`k3s-worker`, labelled `node-type=general`). |
+| **GitOps** | ArgoCD | 8 manifests in `argocd/apps/`, including a `utilities` ApplicationSet that generates one Application per folder (14 Applications live). Helm charts and their values are composed from separate sources. |
+| **Ingress** | Traefik (bundled with k3s, configured via `HelmChartConfig`) | Chart values are patched declaratively rather than forked. |
+| **Load balancing** | k3s ServiceLB (klipper-lb) | Traefik's `LoadBalancer` service binds 80/443 on both node IPs. A MetalLB pool is defined in `core/metallb/` but MetalLB is not installed. |
 | **TLS** | cert-manager + Let's Encrypt | **DNS-01** via Cloudflare, so internal-only hostnames get valid public certs without exposing anything to the internet. |
 | **DNS** | CoreDNS → AdGuard Home | Cluster DNS forwards upstream to AdGuard for network-wide filtering and split-horizon resolution of `*.lan.shiba-toast.com`. |
 | **Storage** | `local-path`, `hostPath` PVs, NFS | Chosen per workload — see [Storage](#storage). |
-
-### Why Talos over a conventional distro
-
-The interesting property isn't that it's minimal, it's that **there is nothing to configure imperatively**. There is no package manager, no systemd units to hand-edit, no SSH. The entire machine is described by `controlplane.yaml` / `worker.yaml` and applied over a mutually-authenticated gRPC API. A node that misbehaves is replaced, not repaired. That forces the same discipline at the OS layer that GitOps enforces at the workload layer.
 
 ---
 
 ## GitOps model
 
 ```
-argocd/apps/*.yaml          →  ArgoCD Applications (the "app of apps" layer)
-  ├── core/                 →  cluster primitives: traefik, cert-manager, metallb, coredns, namespaces
+argocd/apps/*.yaml          →  ArgoCD Applications + the utilities ApplicationSet
   ├── apps/monitoring/      →  observability + infra monitoring
-  ├── apps/utilities/       →  self-hosted user-facing services
+  ├── apps/utilities/*/     →  self-hosted user-facing services (one Application per folder)
   └── apps/arr-stacks/      →  media automation
+core/                       →  cluster primitives (traefik, cert-manager issuer, coredns, namespaces) — applied by hand
 ```
 
-Two patterns are used deliberately:
+Three patterns are used deliberately:
 
-**Directory applications** (`monitoring`, `utilities`, `arr-stacks`) recurse a path and apply raw manifests. Simple, no templating indirection.
+**Directory applications** (`monitoring`, `arr-stacks`) recurse a path and apply raw manifests. Simple, no templating indirection.
+
+**ApplicationSet** (`utilities`) uses a git directory generator: every folder under `apps/utilities/` becomes its own Application in the `utilities` namespace, so adding a service is just adding a folder. `preserveResourcesOnDeletion: true` keeps workloads (and their local-path PVCs) running if a folder is renamed or removed.
 
 **Multi-source Helm applications** (`prometheus`, `loki`, `promtail`, `homepage`, `ghost`) pull the chart from its upstream repo and the values file from *this* repo via the `$values` ref:
 
@@ -64,7 +60,7 @@ This avoids vendoring upstream charts while keeping values under version control
 
 ### Sync policy is intentionally not uniform
 
-`utilities` and `ghost` run `automated: { prune: true, selfHeal: true }`. `monitoring` and `arr-stacks` have automation **commented out** and sync manually. That is a deliberate blast-radius decision: self-heal on a stateful media stack with `Retain` PVs can prune something expensive to rebuild, so those get a human in the loop until I trust the manifests.
+The `utilities` Applications and `ghost` run `automated: { prune: true, selfHeal: true }`. `prometheus` syncs automatically but with `prune` and `selfHeal` off. `monitoring` and `arr-stacks` have automation **commented out** and sync manually. That is a deliberate blast-radius decision: self-heal on a stateful media stack with `Retain` PVs can prune something expensive to rebuild, so those get a human in the loop until I trust the manifests.
 
 ### Handling out-of-band secrets without fighting the reconciler
 
@@ -140,7 +136,7 @@ Workloads on `ReadWriteOnce` volumes use `strategy: Recreate` rather than `Rolli
 - Resource `requests`/`limits` on most workloads (see [Known gaps](#known-gaps)).
 - `livenessProbe` + `readinessProbe` on all application deployments.
 - `revisionHistoryLimit` trimmed to keep rollback history bounded.
-- `node-type` labels (`general` / `gpu`) with `nodeSelector` pinning, so log/metric collectors stay on the general worker and future transcoding workloads land on the GPU node.
+- `node-type` labels with `nodeSelector` pinning, so log/metric collectors stay on the general worker. Only `general` exists today; a `gpu` node for transcoding is planned.
 - Image tags pinned to explicit versions (`louislam/uptime-kuma:2.4.0`) — no `:latest` in the deployment path.
 
 ### Keeping pinned images current
@@ -170,7 +166,9 @@ Documented deliberately — these are the next items of work, not oversights I h
 - **Missing resource limits** on `dawarich/db`, `dawarich/redis`, and `glance` — an unbounded Postgres or Redis can evict neighbours on a single-worker cluster.
 - **Traefik API is served with `--api.insecure=true`**, exposing the dashboard on the internal entrypoint without auth. The `IngressRoute` should point at an authenticated router instead.
 - **Loki has `auth_enabled: false`** — acceptable single-tenant, but it means any in-cluster pod can read all logs.
-- **Single control plane.** No etcd quorum; control-plane loss means a restore, not a failover.
+- **`core/` is not reconciled.** Traefik config, middlewares, the ClusterIssuer and the CoreDNS override are applied with `kubectl apply`, so drift there goes unnoticed. An ArgoCD Application for `core/` would close this.
+- **Single k3s server on SQLite.** No HA datastore; control-plane loss means a restore from the server's data dir, not a failover.
+- **Node clocks follow the Proxmox host at boot.** On 2026-10-29 a host booted with its clock ~8h fast; k3s re-issued its leaf certs with a future `notBefore`, and once the clock was corrected the server refused its own certs and the whole cluster went dark. The fix was `k3s certificate rotate`. Each VM needs an NTP client (`k3s-worker` had none at the time), but the host's RTC is the root cause.
 - **No automated backup/restore drill.** PVs use `Retain` and NFS holds the bulk data, but "the volume still exists" is not the same as a tested restore.
 
 ---
@@ -178,18 +176,19 @@ Documented deliberately — these are the next items of work, not oversights I h
 ## Repository layout
 
 ```
-├── controlplane.yaml / worker.yaml   # Talos machine configs (git-ignored — contain cluster PKI)
-├── core/                             # cluster primitives
-│   ├── traefik/                      # ingress + geoblock / fail2ban / crowdsec / authentik middleware
+├── core/                             # cluster primitives (applied by hand)
+│   ├── traefik/                      # HelmChartConfig + geoblock / fail2ban / crowdsec / authentik middleware
 │   ├── cert-manager/                 # Let's Encrypt ClusterIssuer (DNS-01 via Cloudflare)
-│   ├── metallb/                      # L2 address pool
+│   ├── metallb/                      # L2 address pool (MetalLB not installed; ServiceLB is used)
 │   ├── coredns/                      # upstream forward to AdGuard
-│   ├── prometheus/                   # kube-prometheus-stack values
+│   ├── argocd/                       # ArgoCD UI ingress
+│   ├── prometheus/                   # kube-prometheus-stack values (read by ArgoCD via $values)
 │   └── namespaces/
 ├── apps/                             # workloads, grouped by namespace
 ├── argocd/apps/                      # ArgoCD Application definitions
 ├── hosts/                            # config for hosts outside the cluster (e.g. NPMPlus log/metric shipping)
 ├── scripts/                          # image-update checker + Grafana dashboard generator
+├── docs/images/                      # README assets
 └── .github/workflows/                # weekly image-update PRs
 ```
 
@@ -197,15 +196,18 @@ Documented deliberately — these are the next items of work, not oversights I h
 
 ## Bootstrap
 
-The cluster is intentionally reproducible from three steps:
-
 ```bash
-# 1. Provision nodes (Talos machine configs are generated, not committed)
-talosctl apply-config --insecure --nodes <node-ip> --file controlplane.yaml
-talosctl bootstrap --nodes <control-plane-ip>
+# 1. Server on k3s-cp (bundled Traefik, ServiceLB and local-path stay enabled)
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.35.5+k3s1 sh -
 
-# 2. Install ArgoCD, then point it at this repo
+# 2. Agent on k3s-worker (token from /var/lib/rancher/k3s/server/node-token on k3s-cp)
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.35.5+k3s1 \
+  K3S_URL=https://192.168.1.15:6443 K3S_TOKEN=<node-token> sh -
+kubectl label node k3s-worker node-type=general
+
+# 3. Install cert-manager and ArgoCD from upstream, then apply core/ and the git-ignored secrets
+kubectl apply -f core/namespaces/ -f core/coredns/ -f core/traefik/ -f core/cert-manager/ -f core/argocd/
+
+# 4. Point ArgoCD at this repo; everything under apps/ reconciles from git
 kubectl apply -n argocd -f argocd/apps/
-
-# 3. Everything else reconciles from git
 ```
