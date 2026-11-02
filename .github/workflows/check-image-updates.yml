@@ -1,4 +1,4 @@
-name: Check for image updates
+name: Check for image and Helm chart updates
 
 on:
   schedule:
@@ -46,7 +46,7 @@ jobs:
           commit-message: "chore: bump ${{ steps.check.outputs.name }} to ${{ steps.check.outputs.latest }}"
           title: "Update ${{ steps.check.outputs.name }} to ${{ steps.check.outputs.latest }}"
           body: |
-            Automated image version bump.
+            Automated image or Helm chart version bump.
 
             | | |
             |---|---|
