@@ -43,6 +43,61 @@ if [ -z "$IDX" ]; then
 fi
 
 name=$(yq -r ".[$IDX].name" "$CONFIG")
+type=$(yq -r ".[$IDX].type // \"image\"" "$CONFIG")
+
+if [ "$type" = "helm" ]; then
+  repository=$(yq -r ".[$IDX].repository" "$CONFIG")
+  chart=$(yq -r ".[$IDX].chart" "$CONFIG")
+  manifest=$(yq -r ".[$IDX].manifest" "$CONFIG")
+  version_path=$(yq -r ".[$IDX].version_path" "$CONFIG")
+  pattern=$(yq -r ".[$IDX].version_pattern" "$CONFIG")
+
+  echo "== Checking ${name} (${repository}/${chart}) =="
+  emit "name=${name}"
+
+  if [ ! -f "$manifest" ]; then
+    echo "!! Manifest not found: $manifest"
+    emit "changed=false"
+    exit 0
+  fi
+
+  current=$(yq -r "${version_path}" "$manifest")
+  if [ -z "$current" ] || [ "$current" = "null" ]; then
+    echo "!! Could not find ${version_path} in ${manifest}"
+    emit "changed=false"
+    exit 0
+  fi
+
+  latest=$(curl -fsSL "${repository%/}/index.yaml" \
+    | yq -r ".entries[\"${chart}\"][].version" \
+    | grep -E "${pattern}" \
+    | sort -V \
+    | tail -n1)
+
+  if [ -z "$latest" ]; then
+    echo "!! No chart versions matched pattern '${pattern}'"
+    emit "changed=false"
+    exit 0
+  fi
+
+  echo "   current: ${current}"
+  echo "   latest:  ${latest}"
+  emit "current=${current}"
+  emit "latest=${latest}"
+  emit "pinning=false"
+
+  if [ "$current" = "$latest" ]; then
+    echo "   Already up to date."
+    emit "changed=false"
+    exit 0
+  fi
+
+  echo "   Newer chart version available: ${current} -> ${latest}"
+  yq -i "${version_path} = \"${latest}\"" "$manifest"
+  emit "changed=true"
+  exit 0
+fi
+
 image=$(yq -r ".[$IDX].image" "$CONFIG")
 manifest=$(yq -r ".[$IDX].manifest" "$CONFIG")
 image_path=$(yq -r ".[$IDX].image_path" "$CONFIG")
