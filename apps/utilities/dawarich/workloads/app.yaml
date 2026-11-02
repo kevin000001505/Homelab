@@ -32,20 +32,13 @@ spec:
         - name: db-data
           persistentVolumeClaim:
             claimName: dawarich-db-data
-
       initContainers:
         - name: wait-for-db
           image: postgis/postgis:17-3.5-alpine
-          command:
-            [
-              "sh",
-              "-c",
-              "until pg_isready -h dawarich-db -p 5432 -U postgres; do sleep 2; done",
-            ]
-
+          command: ["sh", "-c", "until pg_isready -h dawarich-db -p 5432 -U postgres; do sleep 2; done"]
       containers:
         - name: dawarich-app
-          image: freikin/dawarich:latest
+          image: freikin/dawarich:1.20.1
           command: ["web-entrypoint.sh"]
           args: ["bin/rails", "server", "-p", "3000", "-b", "::"]
           imagePullPolicy: IfNotPresent
@@ -61,18 +54,15 @@ spec:
               mountPath: /var/app/storage
             - name: db-data
               mountPath: /dawarich_db_data
-
           envFrom:
             - secretRef:
                 name: dawarich-secrets
             - configMapRef:
                 name: dawarich-config
-
           resources:
             requests:
               cpu: "250m"
               memory: "512Mi"
-
           livenessProbe:
             httpGet:
               path: /api/v1/health
@@ -80,7 +70,6 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 10
-
 ---
 apiVersion: v1
 kind: Service
