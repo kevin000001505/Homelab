@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: blackbox-exporter
-          image: prom/blackbox-exporter:v0.28.0
+          image: prom/blackbox-exporter:v0.29.1
           args:
             - --config.file=/config/blackbox.yml
           ports:
@@ -36,7 +36,7 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
-              add: ["NET_RAW"]  # required for ICMP probes
+              add: ["NET_RAW"] # required for ICMP probes
           readinessProbe:
             httpGet:
               path: /-/healthy
