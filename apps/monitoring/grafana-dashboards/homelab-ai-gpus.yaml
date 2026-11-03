@@ -819,8 +819,8 @@ data:
         },
         {
           "type": "state-timeline",
-          "title": "Loaded models over time",
-          "description": "When each model was loaded. Models on different GPUs can overlap; an all-GPU model runs alone.",
+          "title": "Models resident in VRAM over time",
+          "description": "When each model held VRAM, per GPU. Resident is not busy: an idle model still shows here. See the GPU busy panel for activity. Models on different GPUs can overlap; an all-GPU model runs alone.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -831,8 +831,8 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max by (model) (ai_llm_model_loaded{job=\"ai-gpu\", state=\"ready\"})",
-              "legendFormat": "{{model}}",
+              "expr": "max by (model, gpu) (ai_llm_model_loaded{job=\"ai-gpu\", state=\"ready\"})",
+              "legendFormat": "{{model}} ({{gpu}})",
               "refId": "A",
               "instant": false,
               "range": true
@@ -849,7 +849,7 @@ data:
                   "type": "value",
                   "options": {
                     "1": {
-                      "text": "loaded",
+                      "text": "resident",
                       "color": "green",
                       "index": 0
                     }

@@ -1,0 +1,475 @@
+---
+# Source: ghost-on-kubernetes/templates/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ghost
+  labels:
+    app: ghost-on-kubernetes
+    helm.sh/chart: ghost-on-kubernetes-1.1.1
+    app.kubernetes.io/name: ghost-on-kubernetes
+    app.kubernetes.io/instance: my-ghost
+    app.kubernetes.io/version: "6.44.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: ghost-on-kubernetes
+
+---
+# Source: ghost-on-kubernetes/templates/secret-ghost-config.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-ghost-ghost-on-kubernetes-config
+  namespace: ghost
+  labels:
+    helm.sh/chart: ghost-on-kubernetes-1.1.1
+    app.kubernetes.io/name: ghost-on-kubernetes
+    app.kubernetes.io/instance: my-ghost
+    app.kubernetes.io/version: "6.44.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: ghost-on-kubernetes
+    app.kubernetes.io/component: ghost-config
+type: Opaque
+stringData:
+  config.production.json: |-
+    {
+      "url": "https://ghost.shiba-toast.com",
+      "admin": {
+        "url": "https://ghost.shiba-toast.com"
+      },
+      "server": {
+        "port": 2368,
+        "host": "0.0.0.0"
+      },
+      "mail": {
+        "transport": "SMTP",
+        "from": "user@server.com",
+        "options": {
+          "service": "Google",
+          "host": "smtp.gmail.com",
+          "port": 465,
+          "secure": true,
+          "auth": {
+            "user": "user@server.com",
+            "pass": "password"
+          }
+        }
+      },
+      "logging": {
+        "transports": [
+          "stdout"
+        ]
+      },
+      "database": {
+        "client": "mysql",
+        "connection": {
+          "host": "my-ghost-ghost-on-kubernetes-mysql-service",
+          "user": "ghost_user",
+          "password": "secure-password",
+          "database": "ghost_prod",
+          "port": "3306"
+        }
+      },
+      "process": "local",
+      "paths": {
+        "contentPath": "/home/nonroot/app/ghost/content"
+      }
+    }
+
+---
+# Source: ghost-on-kubernetes/templates/secret-mysql.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-ghost-ghost-on-kubernetes-mysql-env
+  namespace: ghost
+  labels:
+    app: ghost-on-kubernetes-mysql
+    helm.sh/chart: ghost-on-kubernetes-1.1.1
+    app.kubernetes.io/name: ghost-on-kubernetes
+    app.kubernetes.io/instance: my-ghost
+    app.kubernetes.io/version: "6.44.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: ghost-on-kubernetes
+    app.kubernetes.io/component: database-secret
+type: Opaque
+stringData:
+  MYSQL_DATABASE: "ghost_prod"
+  MYSQL_USER: "ghost_user"
+  MYSQL_PASSWORD: "secure-password"
+  MYSQL_ROOT_PASSWORD: "secure-root-password"
+  MYSQL_HOST: '%'
+
+---
+# Source: ghost-on-kubernetes/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-ghost-ghost-on-kubernetes-content
+  namespace: ghost
+  labels:
+    helm.sh/chart: ghost-on-kubernetes-1.1.1
+    app.kubernetes.io/name: ghost-on-kubernetes
+    app.kubernetes.io/instance: my-ghost
+    app.kubernetes.io/version: "6.44.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: ghost-on-kubernetes
+    app.kubernetes.io/component: storage
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: ghost-on-kubernetes/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-ghost-ghost-on-kubernetes-mysql-pvc
+  namespace: ghost
+  labels:
+    app: ghost-on-kubernetes-mysql
+    helm.sh/chart: ghost-on-kubernetes-1.1.1
+    app.kubernetes.io/name: ghost-on-kubernetes
+    app.kubernetes.io/instance: my-ghost
+    app.kubernetes.io/version: "6.44.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: ghost-on-kubernetes
+    app.kubernetes.io/component: database-storage
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: ghost-on-kubernetes/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-ghost-ghost-on-kubernetes-service
+  namespace: ghost
+  labels:
+    helm.sh/chart: ghost-on-kubernetes-1.1.1
+    app.kubernetes.io/name: ghost-on-kubernetes
+    app.kubernetes.io/instance: my-ghost
+    app.kubernetes.io/version: "6.44.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: ghost-on-kubernetes
+    app.kubernetes.io/component: service-frontend
+spec:
+  ports:
+  - port: 2368
+    protocol: TCP
+    targetPort: ghk8s
+    name: ghk8s
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ghost-on-kubernetes
+    app.kubernetes.io/instance: my-ghost
+---
+# Source: ghost-on-kubernetes/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-ghost-ghost-on-kubernetes-mysql-service
+  namespace: ghost
+  labels:
+    app: ghost-on-kubernetes-mysql
+    helm.sh/chart: ghost-on-kubernetes-1.1.1
+    app.kubernetes.io/name: ghost-on-kubernetes
+    app.kubernetes.io/instance: my-ghost
+    app.kubernetes.io/version: "6.44.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: ghost-on-kubernetes
+    app.kubernetes.io/component: service-database
+spec:
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: mysqlgh
+    name: mysqlgh
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: ghost-on-kubernetes-mysql
+---
+# Source: ghost-on-kubernetes/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-ghost-ghost-on-kubernetes
+  namespace: ghost
+  labels:
+    helm.sh/chart: ghost-on-kubernetes-1.1.1
+    app.kubernetes.io/name: ghost-on-kubernetes
+    app.kubernetes.io/instance: my-ghost
+    app.kubernetes.io/version: "6.44.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: ghost-on-kubernetes
+    app.kubernetes.io/component: ghost
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ghost-on-kubernetes
+      app.kubernetes.io/instance: my-ghost
+  minReadySeconds: 5
+  strategy:
+    rollingUpdate:
+      maxSurge: 3
+      maxUnavailable: 0
+    type: RollingUpdate
+  revisionHistoryLimit: 4
+  progressDeadlineSeconds: 600
+  template:
+    metadata:
+      namespace: ghost
+      labels:
+        app.kubernetes.io/name: ghost-on-kubernetes
+        app.kubernetes.io/instance: my-ghost
+    spec:
+      automountServiceAccountToken: false
+      volumes:
+      - name: ghost-content
+        persistentVolumeClaim:
+          claimName: my-ghost-ghost-on-kubernetes-content
+      - name: ghost-config
+        secret:
+          secretName: my-ghost-ghost-on-kubernetes-config
+          defaultMode: 420
+      - name: tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      initContainers:
+      - name: permissions-fix
+        imagePullPolicy: IfNotPresent
+        image: "docker.io/busybox:stable-musl"
+        env:
+        - name: GHOST_INSTALL
+          value: /home/nonroot/app/ghost
+        - name: GHOST_CONTENT
+          value: /home/nonroot/app/ghost/content
+        - name: NODE_ENV
+          value: production
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        resources:
+          limits:
+            cpu: 900m
+            memory: 1000Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        command:
+          - /bin/sh
+          - '-c'
+          - |
+            set -e
+            export DIRS='files logs apps themes data public settings images media'
+            echo 'Check if base dirs exists, if not, create them'
+            echo "Directories to check: $DIRS"
+            for dir in $DIRS; do
+              if [ ! -d $GHOST_CONTENT/$dir ]; then
+                echo "Creating $GHOST_CONTENT/$dir directory"
+                mkdir -pv $GHOST_CONTENT/$dir || echo "Error creating $GHOST_CONTENT/$dir directory"
+              fi
+              chown -Rfv 65532:65532 $GHOST_CONTENT/$dir && echo "chown ok on $dir" || echo "Error changing ownership of $GHOST_CONTENT/$dir directory"
+            done
+            exit 0
+        volumeMounts:
+        - name: ghost-content
+          mountPath: /home/nonroot/app/ghost/content
+          readOnly: false
+      containers:
+      - name: ghost
+        image: "ghcr.io/sredevopsorg/ghost-on-kubernetes:main"
+        imagePullPolicy: Always
+        ports:
+        - name: ghk8s
+          containerPort: 2368
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: production
+        resources:
+          limits:
+            cpu: 800m
+            memory: 800Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - name: ghost-content
+          mountPath: /home/nonroot/app/ghost/content
+          readOnly: false
+        - name: ghost-config
+          readOnly: true
+          mountPath: /home/nonroot/app/ghost/config.production.json
+          subPath: config.production.json
+        - name: tmp
+          mountPath: /tmp
+          readOnly: false
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65532
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 15
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+
+---
+# Source: ghost-on-kubernetes/templates/statefulset-mysql.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-ghost-ghost-on-kubernetes-mysql
+  namespace: ghost
+  labels:
+    app: ghost-on-kubernetes-mysql
+    helm.sh/chart: ghost-on-kubernetes-1.1.1
+    app.kubernetes.io/name: ghost-on-kubernetes
+    app.kubernetes.io/instance: my-ghost
+    app.kubernetes.io/version: "6.44.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: ghost-on-kubernetes
+    app.kubernetes.io/component: database
+spec:
+  serviceName: my-ghost-ghost-on-kubernetes-mysql-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ghost-on-kubernetes-mysql
+  template:
+    metadata:
+      labels:
+        app: ghost-on-kubernetes-mysql
+    spec:
+      initContainers:
+      - name: mysql-init
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        image: "docker.io/busybox:stable-musl"
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo 'Changing ownership of mysql mount directory to 65532:65532'
+          chown -Rfv 65532:65532 /mnt/mysql || echo 'Error changing ownership of mysql mount directory to 65532:65532'
+          echo 'Changing ownership of tmp mount directory to 65532:65532'
+          chown -Rfv 65532:65532 /mnt/tmp || echo 'Error changing ownership of tmp mount directory to 65532:65532'
+          echo 'Changing ownership of socket mount directory to 65532:65532'
+          chown -Rfv 65532:65532 /mnt/var/run/mysqld || echo 'Error changing ownership of socket mount directory to 65532:65532'
+        volumeMounts:
+        - name: mysql-volume
+          mountPath: /mnt/mysql
+          subPath: mysql-empty-subdir
+          readOnly: false
+        - name: mysql-tmp
+          mountPath: /mnt/tmp
+          readOnly: false
+        - name: mysql-socket
+          mountPath: /mnt/var/run/mysqld
+          readOnly: false
+        resources:
+          limits:
+            cpu: 900m
+            memory: 1Gi
+          requests:
+            cpu: 0m
+            memory: 0Mi
+      containers:
+      - name: mysql
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65532
+        image: "docker.io/mysql:8.4"
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - secretRef:
+            name: my-ghost-ghost-on-kubernetes-mysql-env
+        resources:
+          limits:
+            cpu: 900m
+            memory: 1Gi
+          requests:
+            cpu: 300m
+            memory: 500Mi
+        ports:
+        - containerPort: 3306
+          protocol: TCP
+          name: mysqlgh
+        volumeMounts:
+        - name: mysql-volume
+          mountPath: /var/lib/mysql
+          subPath: mysql-empty-subdir
+          readOnly: false
+        - name: mysql-tmp
+          mountPath: /tmp
+          readOnly: false
+        - name: mysql-socket
+          mountPath: /var/run/mysqld
+          readOnly: false
+      automountServiceAccountToken: false
+
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+      - name: mysql-volume
+        persistentVolumeClaim:
+          claimName: my-ghost-ghost-on-kubernetes-mysql-pvc
+      - name: mysql-tmp
+        emptyDir:
+          sizeLimit: 128Mi
+      - name: mysql-socket
+        emptyDir:
+          sizeLimit: 128Mi
+
+---
+# Source: ghost-on-kubernetes/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-ghost-ghost-on-kubernetes-ingress
+  namespace: ghost
+  labels:
+    helm.sh/chart: ghost-on-kubernetes-1.1.1
+    app.kubernetes.io/name: ghost-on-kubernetes
+    app.kubernetes.io/instance: my-ghost
+    app.kubernetes.io/version: "6.44.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: ghost-on-kubernetes
+    app.kubernetes.io/component: ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: "ghost.shiba-toast.com"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: my-ghost-ghost-on-kubernetes-service
+            port:
+              name: ghk8s
+  tls:
+  - hosts:
+    - "ghost.shiba-toast.com"
+    secretName: ghost-tls
+

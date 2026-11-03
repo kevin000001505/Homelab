@@ -1,0 +1,20 @@
+---
+# Connectivity check: authenticates to the cluster API and lists VMs.
+# Creates nothing. If this succeeds, the token + proxmoxer + ACL all work.
+#   ansible-playbook playbooks/ping-proxmox.yml
+- name: Verify Proxmox connectivity
+  hosts: proxmox
+  gather_facts: false
+  tasks:
+    - name: Query cluster for existing VMs
+      community.proxmox.proxmox_vm_info:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id }}"
+        api_token_secret: "{{ proxmox_api_token_secret }}"
+        validate_certs: "{{ proxmox_validate_certs }}"
+      register: pve_vms
+
+    - name: Show what the API returned
+      ansible.builtin.debug:
+        msg: "Connected. Found {{ pve_vms.proxmox_vms | length }} VM(s) in the cluster."

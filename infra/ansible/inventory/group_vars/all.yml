@@ -1,0 +1,8 @@
+---
+# Shared defaults. Any VM entry can override these per-VM.
+vm_defaults:
+  cores: 2
+  memory: 4096       # MB
+  bridge: vmbr0
+  storage: local-lvm
+  onboot: true

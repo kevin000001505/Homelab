@@ -1,0 +1,3 @@
+---
+proxmox_vms: []          # overridden per cluster in group_vars
+proxmox_vm_state: present # present = created/running; absent = removed

@@ -1,0 +1,39 @@
+---
+# deploy.yml
+# Generic "push a file or folder to a VM" playbook.
+# All the specifics (which VM, what to send, where it goes) are passed in
+# as variables at run time -- see deploy.sh for the wrapper that does this.
+
+- name: Transfer files/folders to a target VM
+  hosts: all
+  gather_facts: false
+
+  vars:
+    dest_mode: "0755"   # permissions applied to the destination directory
+
+  tasks:
+    - name: Make sure required variables were supplied
+      ansible.builtin.assert:
+        that:
+          - src_path is defined
+          - dest_path is defined
+        fail_msg: >
+          You must pass src_path and dest_path,
+          e.g. -e "src_path=/local/file dest_path=/remote/folder/"
+
+    - name: Ensure destination directory exists
+      ansible.builtin.file:
+        path: "{{ dest_path }}"
+        state: directory
+        mode: "{{ dest_mode }}"
+
+    - name: Copy source to destination
+      ansible.builtin.copy:
+        src: "{{ src_path }}"
+        dest: "{{ dest_path }}"
+        mode: preserve
+      register: copy_result
+
+    - name: Show what was transferred
+      ansible.builtin.debug:
+        msg: "Copied {{ src_path }} -> {{ inventory_hostname }}:{{ dest_path }}"

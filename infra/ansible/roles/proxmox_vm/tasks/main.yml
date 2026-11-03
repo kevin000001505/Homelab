@@ -1,0 +1,21 @@
+---
+- name: "Create / update VMs on {{ inventory_hostname }}"
+  community.proxmox.proxmox_kvm:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_token_id: "{{ proxmox_api_token_id }}"
+    api_token_secret: "{{ proxmox_api_token_secret }}"
+    validate_certs: "{{ proxmox_validate_certs }}"
+    node: "{{ item.node }}"
+    vmid: "{{ item.vmid }}"
+    name: "{{ item.name }}"
+    clone: "{{ item.clone | default(omit) }}"
+    cores: "{{ item.cores | default(vm_defaults.cores) }}"
+    memory: "{{ item.memory | default(vm_defaults.memory) }}"
+    net:
+      net0: "virtio,bridge={{ item.bridge | default(vm_defaults.bridge) }}"
+    onboot: "{{ item.onboot | default(vm_defaults.onboot) }}"
+    state: "{{ proxmox_vm_state }}"
+  loop: "{{ proxmox_vms }}"
+  loop_control:
+    label: "{{ item.name }} (vmid {{ item.vmid }})"

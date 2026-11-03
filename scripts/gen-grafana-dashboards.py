@@ -1165,12 +1165,14 @@ def ai_gpus():
         desc="Input tokens across all models in the time range (radiance counts cached prompt "
              "tokens too).",
         defaults={"decimals": 0, "color": {"mode": "fixed", "fixedColor": "blue"}}), 6, 7)
-    L.add(panel("state-timeline", "Loaded models over time",
-                [prom(f'max by (model) (ai_llm_model_loaded{{{LLM}, state="ready"}})', "{{model}}")],
-                desc="When each model was loaded. Models on different GPUs can overlap; an "
-                     "all-GPU model runs alone.",
+    L.add(panel("state-timeline", "Models resident in VRAM over time",
+                [prom(f'max by (model, gpu) (ai_llm_model_loaded{{{LLM}, state="ready"}})',
+                      "{{model}} ({{gpu}})")],
+                desc="When each model held VRAM, per GPU. Resident is not busy: an idle model "
+                     "still shows here. See the GPU busy panel for activity. Models on "
+                     "different GPUs can overlap; an all-GPU model runs alone.",
                 defaults={"mappings": [{"type": "value", "options": {
-                    "1": {"text": "loaded", "color": "green", "index": 0}}}],
+                    "1": {"text": "resident", "color": "green", "index": 0}}}],
                     "color": {"mode": "thresholds"}, "thresholds": thresholds(("green", None)),
                     "custom": {"fillOpacity": 85, "lineWidth": 0}},
                 options={"showValue": "never", "mergeValues": True, "rowHeight": 0.8,
