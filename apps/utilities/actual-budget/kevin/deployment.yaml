@@ -27,7 +27,7 @@ spec:
             claimName: actual-budget-pvc
       containers:
         - name: actual-budget
-          image: actualbudget/actual-server:26.10.0
+          image: actualbudget/actual-server:26.11.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5006

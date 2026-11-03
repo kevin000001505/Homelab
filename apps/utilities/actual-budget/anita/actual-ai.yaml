@@ -33,7 +33,7 @@ spec:
       containers:
         - name: actual-ai-anita
           # Keep in step with actual-server: its @actual-app/api must match the server version
-          image: sakowicz/actual-ai:3.0.2
+          image: sakowicz/actual-ai:3.0.4
           imagePullPolicy: IfNotPresent
           env:
             - name: ACTUAL_SERVER_URL
