@@ -56,7 +56,7 @@ spec:
         - https://argocd.lan.shiba-toast.com
         - https://homepage.lan.shiba-toast.com
         - https://uptime.lan.shiba-toast.com
-        - https://speedtest.lan.shiba-toast.com
+        # - https://speedtest.lan.shiba-toast.com # Speedtest Tracker disabled
         - https://glance.lan.shiba-toast.com
         - https://open-webui.lan.shiba-toast.com
         - https://airtrail.lan.shiba-toast.com

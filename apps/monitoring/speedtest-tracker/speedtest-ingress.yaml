@@ -1,29 +1,32 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: speedtest-tracker
-  namespace: monitoring
-  labels:
-    app: speedtest-tracker
-    tier: monitoring
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-authentik@kubernetescrd
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: speedtest.lan.shiba-toast.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: speedtest-tracker
-                port:
-                  number: 80
-  tls:
-    - hosts:
-        - speedtest.lan.shiba-toast.com
-      secretName: speedtest-tracker-tls
+# DISABLED 2026-11-06: Speedtest Tracker is turned off.
+# Uncomment everything below to bring it back. PV data under hostPath is kept.
+
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: speedtest-tracker
+#   namespace: monitoring
+#   labels:
+#     app: speedtest-tracker
+#     tier: monitoring
+#   annotations:
+#     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+#     traefik.ingress.kubernetes.io/router.middlewares: kube-system-authentik@kubernetescrd
+#     cert-manager.io/cluster-issuer: letsencrypt-prod
+# spec:
+#   ingressClassName: traefik
+#   rules:
+#     - host: speedtest.lan.shiba-toast.com
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: speedtest-tracker
+#                 port:
+#                   number: 80
+#   tls:
+#     - hosts:
+#         - speedtest.lan.shiba-toast.com
+#       secretName: speedtest-tracker-tls
