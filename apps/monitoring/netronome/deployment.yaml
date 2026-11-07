@@ -92,7 +92,9 @@ spec:
             failureThreshold: 3
           resources:
             requests:
-              cpu: 100m
+              # Idle between tests; k3s-worker has ~40m of CPU requests left.
+              # No CPU limit, so speed tests can still burst.
+              cpu: 25m
               memory: 128Mi
             limits:
               memory: 512Mi
