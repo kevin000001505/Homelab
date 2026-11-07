@@ -193,6 +193,9 @@ config:
               type: uptimekuma
               url: http://uptime-kuma.monitoring.svc.cluster.local
               slug: homelab
+        - Netronome:
+            icon: https://cdn.jsdelivr.net/gh/selfhst/icons/png/netronome.png
+            href: https://netronome.lan.shiba-toast.com
 
     - Networking:
         - Adguard Home:
@@ -243,9 +246,6 @@ config:
         - Bentopdf:
             icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/bentopdf.svg
             href: https://bentopdf.lan.shiba-toast.com
-        - Netronome:
-            icon: https://cdn.jsdelivr.net/gh/selfhst/icons/png/netronome.png
-            href: https://netronome.lan.shiba-toast.com
         - OpenWebUI:
             icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/open-webui.svg
             href: https://openwebui.lan.shiba-toast.com

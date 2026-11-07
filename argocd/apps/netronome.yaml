@@ -1,0 +1,24 @@
+# argocd/apps/netronome.yaml
+#
+# Netronome lives under apps/monitoring/ but gets its own Application
+# (excluded from the "monitoring" Application) so it auto-syncs on its own.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: netronome
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kevin000001505/Homelab.git
+    targetRevision: HEAD
+    path: apps/monitoring/netronome
+    directory:
+      recurse: true
+  destination:
+    server: https://192.168.1.15:6443
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

@@ -2,10 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: netronome
-  namespace: utilities
+  namespace: monitoring
   labels:
     app: netronome
-    tier: utilities
+    tier: monitoring
 spec:
   replicas: 1
   strategy:
@@ -13,12 +13,12 @@ spec:
   selector:
     matchLabels:
       app: netronome
-      tier: utilities
+      tier: monitoring
   template:
     metadata:
       labels:
         app: netronome
-        tier: utilities
+        tier: monitoring
     spec:
       securityContext:
         sysctls:
@@ -101,15 +101,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: netronome
-  namespace: utilities
+  namespace: monitoring
   labels:
     app: netronome
-    tier: utilities
+    tier: monitoring
 spec:
   type: ClusterIP
   selector:
     app: netronome
-    tier: utilities
+    tier: monitoring
   ports:
     - name: http
       port: 80

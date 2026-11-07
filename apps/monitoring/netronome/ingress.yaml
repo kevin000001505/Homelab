@@ -2,10 +2,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: netronome
-  namespace: utilities
+  namespace: monitoring
   labels:
     app: netronome
-    tier: utilities
+    tier: monitoring
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     # Authentik does the login; Netronome's own login is bypassed (see AUTH_WHITELIST in deployment.yaml)
