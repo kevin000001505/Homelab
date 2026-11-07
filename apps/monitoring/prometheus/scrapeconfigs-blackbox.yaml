@@ -63,6 +63,7 @@ spec:
         - https://bentopdf.lan.shiba-toast.com
         - https://ghost.lan.shiba-toast.com
         - https://subsyncarr.lan.shiba-toast.com
+        - https://netronome.lan.shiba-toast.com
     - labels:
         group: internal
         proxy: npmplus

@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: netronome
+  namespace: utilities
+  labels:
+    app: netronome
+    tier: utilities
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    # Authentik does the login; Netronome's own login is bypassed (see AUTH_WHITELIST in deployment.yaml)
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-authentik@kubernetescrd
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  rules:
+    - host: netronome.lan.shiba-toast.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: netronome
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - netronome.lan.shiba-toast.com
+      secretName: netronome-tls
