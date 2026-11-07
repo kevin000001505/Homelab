@@ -39,6 +39,17 @@ monitoring:
 test:
   enabled: false
 
+# Results cache: shrink from the chart default (500m CPU, ~1.2Gi) to fit the
+# homelab. It caches query results only; Loki works the same, just recomputes more.
+resultsCache:
+  allocatedMemory: 128 # MB for memcached -m (chart default 1024)
+  resources:
+    requests:
+      cpu: 50m
+      memory: 160Mi
+    limits:
+      memory: 160Mi
+
 chunksCache:
   enabled: false
   # allocatedMemory: 512 # MB given to memcached -m flag (default is 8192)
