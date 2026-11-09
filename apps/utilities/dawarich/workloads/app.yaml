@@ -42,7 +42,7 @@ spec:
           command: ["sh", "-c", "until pg_isready -h dawarich-db -p 5432 -U postgres; do sleep 2; done"]
       containers:
         - name: dawarich-app
-          image: freikin/dawarich:1.20.1
+          image: freikin/dawarich:1.22.0
           command: ["web-entrypoint.sh"]
           args: ["bin/rails", "server", "-p", "3000", "-b", "::"]
           imagePullPolicy: IfNotPresent
