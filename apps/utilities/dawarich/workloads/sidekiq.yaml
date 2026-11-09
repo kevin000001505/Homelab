@@ -39,7 +39,7 @@ spec:
           command: ["sh", "-c", "until wget -qO- http://dawarich-app/api/v1/health | grep -q ok; do sleep 2; done"]
       containers:
         - name: dawarich-sidekiq
-          image: freikin/dawarich:1.20.1
+          image: freikin/dawarich:1.22.0
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: public
