@@ -1186,8 +1186,16 @@ def ai_gpus():
                         "llama.cpp updates its counters when a request finishes."), 12, 9)
     L.add(ts("Prompt processing speed", [
         prom(speed("llamacpp:prompt_tokens_total", "llamacpp:prompt_seconds_total"), "{{model}}",
-             ref="A")],
-        unit=TOKS, desc="llama.cpp prefill speed. For radiance see time to first token below."),
+             ref="A"),
+        # radiance has no prefill-seconds counter: its engine time minus decode time is
+        # prefill plus mixed steps, so this slightly understates its prefill speed.
+        prom(f'sum by (model) (rate(radiance:prefill_tokens_total{{{LLM}}}[$__rate_interval])) / '
+             f'((sum by (model) (rate(radiance:engine_step_seconds_total{{{LLM}}}[$__rate_interval])) - '
+             f'sum by (model) (rate(radiance:engine_step_seconds_decode_total{{{LLM}}}[$__rate_interval]))) > 0)',
+             "{{model}}", ref="B")],
+        unit=TOKS, desc="Prompt tokens per second while reading the prompt (idle time excluded). "
+                        "radiance: engine time not spent decoding, so a slight underestimate. "
+                        "Cached prompt tokens are not counted."),
           12, 9)
     L.add(ts("Token throughput", [
         prom(by_backend("llamacpp:tokens_predicted_total", "vllm:generation_tokens_total"),

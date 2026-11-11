@@ -968,7 +968,7 @@ data:
         {
           "type": "timeseries",
           "title": "Prompt processing speed",
-          "description": "llama.cpp prefill speed. For radiance see time to first token below.",
+          "description": "Prompt tokens per second while reading the prompt (idle time excluded). radiance: engine time not spent decoding, so a slight underestimate. Cached prompt tokens are not counted.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -982,6 +982,17 @@ data:
               "expr": "sum by (model) (rate(llamacpp:prompt_tokens_total{job=\"ai-gpu\"}[$__rate_interval])) / (sum by (model) (rate(llamacpp:prompt_seconds_total{job=\"ai-gpu\"}[$__rate_interval])) > 0)",
               "legendFormat": "{{model}}",
               "refId": "A",
+              "instant": false,
+              "range": true
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum by (model) (rate(radiance:prefill_tokens_total{job=\"ai-gpu\"}[$__rate_interval])) / ((sum by (model) (rate(radiance:engine_step_seconds_total{job=\"ai-gpu\"}[$__rate_interval])) - sum by (model) (rate(radiance:engine_step_seconds_decode_total{job=\"ai-gpu\"}[$__rate_interval]))) > 0)",
+              "legendFormat": "{{model}}",
+              "refId": "B",
               "instant": false,
               "range": true
             }
