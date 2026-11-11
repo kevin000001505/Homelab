@@ -1214,7 +1214,7 @@ def ai_gpus():
                          keep("Model", "Generated", "Prompt"), sort_by("Generated")],
         overrides=[unit_cell("Generated", "short", 0), unit_cell("Prompt", "short", 0)]), 24, 7)
 
-    L.row("radiance (Qwen3.8-27B)")
+    L.row("radiance & Strata")
     L.add(ts("Time to first token", [
         prom(f'histogram_quantile(0.5, sum by (le, model) (rate(vllm:time_to_first_token_seconds_bucket{{{LLM}}}[$__rate_interval])))',
              "{{model}} p50", ref="A"),
@@ -1222,12 +1222,15 @@ def ai_gpus():
              "{{model}} p95", ref="B")], unit="s"), 8, 8)
     L.add(ts("KV cache used", [prom(f'max by (model) (vllm:kv_cache_usage_perc{{{LLM}}})', "{{model}}")],
              unit="percentunit", defaults={"max": 1},
-             desc="Share of radiance's KV cache holding live sessions."), 8, 8)
+             desc="Share of the KV cache holding live sessions (radiance and Strata)."), 8, 8)
     L.add(ts("Draft acceptance", [prom(
         f'sum by (model) (rate(radiance:draft_accepted_total{{{LLM}}}[$__rate_interval])) / '
-        f'(sum by (model) (rate(radiance:draft_tokens_total{{{LLM}}}[$__rate_interval])) > 0)', "{{model}}")],
+        f'(sum by (model) (rate(radiance:draft_tokens_total{{{LLM}}}[$__rate_interval])) > 0) or '
+        f'sum by (model) (rate(strata:drafts_accepted_total{{{LLM}}}[$__rate_interval])) / '
+        f'(sum by (model) (rate(strata:drafts_offered_total{{{LLM}}}[$__rate_interval])) > 0)', "{{model}}")],
         unit="percentunit", defaults={"max": 1},
-        desc="Share of speculative (DFlash2) draft tokens the model accepted: higher is faster."),
+        desc="Share of speculative draft tokens the model accepted (radiance DFlash2, "
+             "Strata MTP): higher is faster."),
           8, 8)
 
     L.row("Temperature & cooling")

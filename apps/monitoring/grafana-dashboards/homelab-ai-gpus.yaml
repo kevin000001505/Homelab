@@ -1281,7 +1281,7 @@ data:
         },
         {
           "type": "row",
-          "title": "radiance (Qwen3.8-27B)",
+          "title": "radiance & Strata",
           "collapsed": false,
           "panels": [],
           "gridPos": {
@@ -1359,7 +1359,7 @@ data:
         {
           "type": "timeseries",
           "title": "KV cache used",
-          "description": "Share of radiance's KV cache holding live sessions.",
+          "description": "Share of the KV cache holding live sessions (radiance and Strata).",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1413,7 +1413,7 @@ data:
         {
           "type": "timeseries",
           "title": "Draft acceptance",
-          "description": "Share of speculative (DFlash2) draft tokens the model accepted: higher is faster.",
+          "description": "Share of speculative draft tokens the model accepted (radiance DFlash2, Strata MTP): higher is faster.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1424,7 +1424,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum by (model) (rate(radiance:draft_accepted_total{job=\"ai-gpu\"}[$__rate_interval])) / (sum by (model) (rate(radiance:draft_tokens_total{job=\"ai-gpu\"}[$__rate_interval])) > 0)",
+              "expr": "sum by (model) (rate(radiance:draft_accepted_total{job=\"ai-gpu\"}[$__rate_interval])) / (sum by (model) (rate(radiance:draft_tokens_total{job=\"ai-gpu\"}[$__rate_interval])) > 0) or sum by (model) (rate(strata:drafts_accepted_total{job=\"ai-gpu\"}[$__rate_interval])) / (sum by (model) (rate(strata:drafts_offered_total{job=\"ai-gpu\"}[$__rate_interval])) > 0)",
               "legendFormat": "{{model}}",
               "refId": "A",
               "instant": false,
