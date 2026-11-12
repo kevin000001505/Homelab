@@ -10,7 +10,7 @@ data:
   homelab-wall.json: |
     {
       "uid": "homelab-wall",
-      "title": "Homelab \u00b7 Wall",
+      "title": "1 \u00b7 Homelab Wall",
       "tags": [
         "homelab",
         "wall"

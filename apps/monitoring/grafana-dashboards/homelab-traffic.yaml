@@ -10,7 +10,7 @@ data:
   homelab-traffic.json: |
     {
       "uid": "homelab-traffic",
-      "title": "Homelab \u00b7 Traffic",
+      "title": "2 \u00b7 Traffic & Attacks",
       "tags": [
         "homelab",
         "domain",

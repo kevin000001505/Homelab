@@ -10,7 +10,7 @@ data:
   homelab-network.json: |
     {
       "uid": "homelab-network",
-      "title": "Homelab \u00b7 Network",
+      "title": "2 \u00b7 Network",
       "tags": [
         "homelab",
         "domain",

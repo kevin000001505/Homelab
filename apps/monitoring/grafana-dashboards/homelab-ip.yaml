@@ -10,7 +10,7 @@ data:
   homelab-ip.json: |
     {
       "uid": "homelab-ip",
-      "title": "Homelab \u00b7 IP address",
+      "title": "3 \u00b7 Traffic \u203a IP Address",
       "tags": [
         "homelab",
         "detail",

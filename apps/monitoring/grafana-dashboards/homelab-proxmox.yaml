@@ -10,7 +10,7 @@ data:
   homelab-proxmox.json: |
     {
       "uid": "homelab-proxmox",
-      "title": "Homelab \u00b7 Proxmox",
+      "title": "2 \u00b7 Proxmox",
       "tags": [
         "homelab",
         "domain",

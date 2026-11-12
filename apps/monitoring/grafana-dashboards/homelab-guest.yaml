@@ -10,7 +10,7 @@ data:
   homelab-guest.json: |
     {
       "uid": "homelab-guest",
-      "title": "Homelab \u00b7 Guest",
+      "title": "3 \u00b7 Proxmox \u203a Guest",
       "tags": [
         "homelab",
         "detail",

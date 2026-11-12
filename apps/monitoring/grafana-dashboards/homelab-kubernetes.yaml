@@ -10,7 +10,7 @@ data:
   homelab-kubernetes.json: |
     {
       "uid": "homelab-kubernetes",
-      "title": "Homelab \u00b7 Kubernetes",
+      "title": "2 \u00b7 Kubernetes",
       "tags": [
         "homelab",
         "domain",

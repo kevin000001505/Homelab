@@ -10,7 +10,7 @@ data:
   homelab-ai.json: |
     {
       "uid": "homelab-ai",
-      "title": "Homelab \u00b7 AI",
+      "title": "2 \u00b7 AI & GPUs",
       "tags": [
         "homelab",
         "domain",

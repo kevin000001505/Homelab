@@ -14,6 +14,8 @@ The dashboards form a three-level tree, and every level links to the next by cli
     (1)       (2: one dashboard per Domain)                      (3: Detail pages)
 
 GLOSSARY.md defines these words and the numbers shown (Memory used, Attack attempt, App ...).
+Titles start with the level (1 · Wall, 2 · a Domain, 3 · Domain › Detail page), so
+Grafana's alphabetical list reads as the tree.
 
 Layout rules, for readability: at most four stat tiles per row, any chart with
 many series gets the full width, and legends sit under the chart.
@@ -658,7 +660,7 @@ def wall():
 
     v_loki = ds_var("loki", "loki", "Loki")
     v_loki["hide"] = 2  # nothing to pick on a wall display
-    return dashboard(WALL, "Homelab · Wall", ["wall"], L, variables=[v_loki],
+    return dashboard(WALL, "1 · Homelab Wall", ["wall"], L, variables=[v_loki],
                      time_from="now-24h", parent=None)
 
 
@@ -898,7 +900,7 @@ def traffic():
         desc="/v1/decisions is on the request path: the proxy waits for it before serving a "
              "new client IP."), 24, 9)
 
-    return dashboard(TRAFFIC, "Homelab · Traffic", ["domain", "traffic"], L,
+    return dashboard(TRAFFIC, "2 · Traffic & Attacks", ["domain", "traffic"], L,
                      variables=[v_loki, v_vhost], time_from="now-24h")
 
 
@@ -946,7 +948,7 @@ def ip_page():
                '{job="crowdsec"} |~ `(?i)(ip |msg=")${ip:regex}[ (]`'), 24, 8)
     L.add(logs("Access log", access), 24, 10)
 
-    d = dashboard(IP_PAGE, "Homelab · IP address", ["detail", "traffic"], L,
+    d = dashboard(IP_PAGE, "3 · Traffic › IP Address", ["detail", "traffic"], L,
                   variables=[v_loki, v_ip], time_from="now-7d", parent=("Traffic", TRAFFIC))
     d["links"].append({"title": "AbuseIPDB report for $ip", "type": "link", "icon": "external link",
                        "url": "https://www.abuseipdb.com/check/${ip}", "targetBlank": True})
@@ -1044,7 +1046,7 @@ def network():
         desc="resolve → connect → tls → processing (server time to first byte) → transfer. "
              "Pick one site in the Site menu to see its breakdown."), 24, 9)
 
-    return dashboard(NETWORK, "Homelab · Network", ["domain", "network"], L,
+    return dashboard(NETWORK, "2 · Network", ["domain", "network"], L,
                      variables=[v_site])
 
 
@@ -1223,7 +1225,7 @@ def proxmox():
     L.add(ts("Disk temperature", [prom(pve_node(DISK_TEMP), "{{node}} {{disk}}")],
              unit="celsius"), 24, 8)
 
-    return dashboard(PROXMOX, "Homelab · Proxmox", ["domain", "proxmox"], L, time_from="now-24h")
+    return dashboard(PROXMOX, "2 · Proxmox", ["domain", "proxmox"], L, time_from="now-24h")
 
 
 # ====================================================================== GUEST
@@ -1306,7 +1308,7 @@ def guest_page():
             gauge_cell("Used", "percentunit", 0, 1, ("green", None), ("orange", 0.8), ("red", 0.9)),
             unit_cell("Size", "bytes")]), 24, 8)
 
-    return dashboard(GUEST_PAGE, "Homelab · Guest", ["detail", "proxmox"], L,
+    return dashboard(GUEST_PAGE, "3 · Proxmox › Guest", ["detail", "proxmox"], L,
                      variables=[v_guest], time_from="now-24h", parent=("Proxmox", PROXMOX))
 
 
@@ -1429,7 +1431,7 @@ def kubernetes():
         defaults={"decimals": 1, "thresholds": thresholds(("red", None), ("orange", 7), ("green", 14))}),
           6, 9)
 
-    return dashboard(KUBERNETES, "Homelab · Kubernetes", ["domain", "kubernetes"], L,
+    return dashboard(KUBERNETES, "2 · Kubernetes", ["domain", "kubernetes"], L,
                      variables=[v_svc], time_from="now-24h")
 
 
@@ -1511,7 +1513,7 @@ def app_page():
                    unit_cell("Restarts", "none", 0), unit_cell("Age", "s")]), 24, 6)
     L.add(logs("Logs", '{namespace="$namespace", pod=~"$pod"}'), 24, 14)
 
-    return dashboard(APP_PAGE, "Homelab · App", ["detail", "kubernetes"], L,
+    return dashboard(APP_PAGE, "3 · Kubernetes › App", ["detail", "kubernetes"], L,
                      variables=[v_loki, v_ns, v_app, v_pod], time_from="now-24h",
                      parent=("Kubernetes", KUBERNETES))
 
@@ -1740,7 +1742,7 @@ def ai():
         unit="bytes", overrides=[dashed("total")],
         desc="The VM's own RAM: model loading and radiance's host pool live here."), 12, 9)
 
-    return dashboard(AI_DASH, "Homelab · AI", ["domain", "ai"], L, variables=[v_model],
+    return dashboard(AI_DASH, "2 · AI & GPUs", ["domain", "ai"], L, variables=[v_model],
                      time_from="now-6h", refresh="30s")
 
 
