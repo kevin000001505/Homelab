@@ -1484,7 +1484,10 @@ grafana:
         etcd:
           enabled: false
       provider:
-        allowUiUpdates: false
+        # Dashboards can be edited and saved in the Grafana UI. A UI save lasts until that
+        # dashboard's generated JSON (scripts/gen-grafana-dashboards.py) changes; then the
+        # file wins and the UI edit is lost. Copy lasting changes into the generator.
+        allowUiUpdates: true
     datasources:
       enabled: true
       defaultDatasourceEnabled: true
