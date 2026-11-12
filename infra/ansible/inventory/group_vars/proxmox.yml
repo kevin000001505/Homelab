@@ -1,0 +1,29 @@
+---
+# ---- Cluster connection (single API for the whole cluster) ----
+proxmox_api_host: "192.168.1.5"        # IP/hostname of EITHER node (or a cluster VIP)
+proxmox_api_user: "ansible@pve"
+proxmox_api_token_id: "automation"       # just the token NAME, not user!name
+# Do NOT commit the real secret. Read it from an env var (see README).
+proxmox_api_token_secret: "{{ lookup('env', 'PVE_TOKEN_SECRET') }}"
+proxmox_validate_certs: false            # set true once you have valid certs
+
+# ---- VMs to manage. `node` picks which of the two hosts it lands on. ----
+proxmox_vms:
+  - name: k8s-cp-01
+    vmid: 101
+    node: pve-node1
+    clone: ubuntu-2404-tmpl              # a template that exists in the cluster
+    cores: 4
+    memory: 8192
+  - name: k8s-worker-01
+    vmid: 111
+    node: pve-node1
+    clone: ubuntu-2404-tmpl
+    cores: 4
+    memory: 8192
+  - name: k8s-worker-02
+    vmid: 112
+    node: pve-node2                      # placed on the second node
+    clone: ubuntu-2404-tmpl
+    cores: 4
+    memory: 8192

@@ -18,6 +18,7 @@ spec:
   template:
     metadata:
       labels:
+        homelab/app: subsyncarr
         app: subsyncarr
         tier: arr-stacks
     spec:

@@ -15,6 +15,7 @@ spec:
   template:
     metadata:
       labels:
+        homelab/app: blackbox-exporter
         app: blackbox-exporter
         tier: monitoring
       annotations:

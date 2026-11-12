@@ -18,6 +18,7 @@ spec:
   template:
     metadata:
       labels:
+        homelab/app: open-webui
         app: open-webui
         tier: utilities
     spec:

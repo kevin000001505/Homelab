@@ -18,6 +18,7 @@ spec:
   template:
     metadata:
       labels:
+        homelab/app: glance
         app: glance
         tier: utilities
     spec:

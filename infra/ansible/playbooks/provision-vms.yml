@@ -1,0 +1,9 @@
+---
+# Provision VMs across the cluster's two nodes.
+#   ansible-playbook playbooks/provision-vms.yml
+#   ansible-playbook playbooks/provision-vms.yml --check   # dry run
+- name: Provision Proxmox VMs
+  hosts: proxmox
+  gather_facts: false
+  roles:
+    - proxmox_vm

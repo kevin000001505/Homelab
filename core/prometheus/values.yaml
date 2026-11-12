@@ -1398,7 +1398,7 @@ grafana:
   grafana.ini:
     dashboards:
       # Homelab · Today (scripts/gen-grafana-dashboards.py), where the sidecar writes it.
-      default_home_dashboard_path: /tmp/dashboards/homelab-today.json
+      default_home_dashboard_path: /tmp/dashboards/homelab-wall.json
 
   rbac:
     ## If true, Grafana PSPs will be created
@@ -2595,6 +2595,11 @@ kubeStateMetrics:
 kube-state-metrics:
   ## set to true to add the release label so scraping of the servicemonitor with kube-prometheus-stack works out of the box
   releaseLabel: true
+
+  ## Pod labels exported as kube_pod_labels: the homelab:pod_app:info rule
+  ## (apps/monitoring/prometheus/rules-homelab.yaml) turns them into each pod's App.
+  metricLabelsAllowlist:
+    - pods=[homelab/app,app.kubernetes.io/name,k8s-app,app]
 
   ## Enable scraping via kubernetes-service-endpoints
   ## Disabled by default as we service monitor is enabled below

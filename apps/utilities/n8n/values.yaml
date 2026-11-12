@@ -1,0 +1,70 @@
+log:
+  level: warn
+  format: text
+
+db:
+  type: postgresdb
+
+externalPostgresql:
+  host: "postgresql-instance1.ab012cdefghi.eu-central-1.rds.amazonaws.com"
+  username: "n8nuser"
+  password: "Pa33w0rd!"
+  database: "n8n"
+
+main:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 512m
+      memory: 512Mi
+
+worker:
+  mode: queue
+
+  autoscaling:
+    enabled: true
+
+  waitMainNodeReady:
+    enabled: true
+
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 250Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+
+externalRedis:
+  host: "redis-instance1.ab012cdefghi.eu-central-1.rds.amazonaws.com"
+  username: "default"
+  password: "Pa33w0rd!"
+
+ingress:
+  enabled: true
+  hosts:
+    - host: n8n.lan.shiba-toast.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+webhook:
+  mode: queue
+
+  url: "https://webhook.lan.shiba-toast.com"
+
+  autoscaling:
+    enabled: true
+
+  waitMainNodeReady:
+    enabled: true
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 512m
+      memory: 512Mi

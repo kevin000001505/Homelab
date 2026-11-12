@@ -16,6 +16,7 @@ spec:
   template:
     metadata:
       labels:
+        homelab/app: bentopdf
         app: bentopdf
         tier: utilities
     spec:

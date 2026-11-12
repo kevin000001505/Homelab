@@ -17,6 +17,7 @@ spec:
   template:
     metadata:
       labels:
+        homelab/app: dawarich
         app: dawarich-db
         tier: database
     spec:

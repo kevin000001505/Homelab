@@ -17,6 +17,7 @@ spec:
   template:
     metadata:
       labels:
+        homelab/app: airtrail
         app: airtrail-db
         tier: database
     spec:

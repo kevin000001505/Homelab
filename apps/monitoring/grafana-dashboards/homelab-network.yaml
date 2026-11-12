@@ -10,9 +10,10 @@ data:
   homelab-network.json: |
     {
       "uid": "homelab-network",
-      "title": "Homelab \u00b7 Network & Latency",
+      "title": "Homelab \u00b7 Network",
       "tags": [
         "homelab",
+        "domain",
         "network"
       ],
       "timezone": "browser",
@@ -44,7 +45,6 @@ data:
             "refresh": 2,
             "includeAll": true,
             "multi": true,
-            "allValue": ".+",
             "current": {
               "selected": true,
               "text": "All",
@@ -52,7 +52,8 @@ data:
             },
             "sort": 1,
             "hide": 0,
-            "options": []
+            "options": [],
+            "allValue": ".+"
           }
         ]
       },
@@ -73,6 +74,13 @@ data:
         ]
       },
       "links": [
+        {
+          "title": "\u2191 Wall",
+          "type": "link",
+          "icon": "dashboard",
+          "url": "/d/homelab-wall",
+          "keepTime": false
+        },
         {
           "title": "Homelab dashboards",
           "type": "dashboards",

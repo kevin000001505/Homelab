@@ -18,6 +18,7 @@ spec:
   template:
     metadata:
       labels:
+        homelab/app: actual-budget
         app: actual-budget
         tier: utilities
     spec:

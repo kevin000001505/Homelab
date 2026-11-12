@@ -1,0 +1,277 @@
+# Tracearr with TimescaleDB (PG18) and Redis.
+
+tracearr:
+  image:
+    repository: ghcr.io/connorgallopo/tracearr
+    tag: "@sha256:ca93988326c26597e0d9c91d69c0f97e7ed23c517cf327c22bc7f188002af998"  # defaults to appVersion
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1  # singleton poller — only 1 supported
+
+  service:
+    type: ClusterIP
+    port: 3000
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+
+  env:
+    NODE_ENV: production
+    HOST: "0.0.0.0"
+    PORT: "3000"  # must match containerPort (3000)
+    LOG_LEVEL: info
+    CORS_ORIGIN: "*"
+    TZ: UTC
+    # DATABASE_POOL_MAX: "50"
+    # POLLER_ENABLED: "true"
+    # POLLER_INTERVAL: "15000"
+    # GZIP_ENABLED: "true"
+    # MOBILE_BETA_MODE: "false"
+
+  extraEnv: []
+
+  backups:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+
+  imageCache:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+
+  # Dockerfile user: 1001:1001 (tracearr:nodejs)
+  podSecurityContext:
+    fsGroup: 1001
+
+  securityContext:
+    runAsUser: 1001
+    runAsGroup: 1001
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false  # needs /app/data/image-cache + /data/backup
+    capabilities:
+      drop: [ALL]
+    seccompProfile:
+      type: RuntimeDefault
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 15
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  startupProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    failureThreshold: 30
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+  podLabels: {}
+  topologySpreadConstraints: []
+
+secrets:
+  autoGenerate: true
+  jwtSecret: ""      # openssl rand -hex 32
+  cookieSecret: ""   # openssl rand -hex 32
+  dbPassword: "tracearr"
+  # Use an existing Secret (needs JWT_SECRET, COOKIE_SECRET, DB_PASSWORD keys)
+  existingSecret: ""
+
+timescale:
+  enabled: true
+
+  image:
+    repository: timescale/timescaledb-ha
+    tag: pg18.1-ts2.25.0@sha256:9dcbd18e5cb966398ae19f3882fd5fb2e19b3cb98be54d290ab9f69c75bf0a8b
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 5432
+
+  postgresArgs:
+    - "-c"
+    - "timescaledb.license=timescale"
+    - "-c"
+    - "timescaledb.max_tuples_decompressed_per_dml_transaction=0"
+    - "-c"
+    - "max_locks_per_transaction=4096"
+    - "-c"
+    - "timescaledb.telemetry_level=off"
+    # Tuned for 4 GB limit, SSD storage
+    - "-c"
+    - "shared_buffers=512MB"
+    - "-c"
+    - "effective_cache_size=2GB"
+    - "-c"
+    - "work_mem=16MB"
+    - "-c"
+    - "maintenance_work_mem=256MB"
+    - "-c"
+    - "wal_buffers=64MB"
+    - "-c"
+    - "max_wal_size=2GB"
+    - "-c"
+    - "checkpoint_completion_target=0.9"
+    - "-c"
+    - "random_page_cost=1.1"
+    - "-c"
+    - "effective_io_concurrency=200"
+
+  shmSize: 512Mi
+
+  persistence:
+    size: 50Gi
+    storageClass: ""
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: "4"
+      memory: 4Gi
+
+  # timescaledb-ha: UID 1000 (postgres)
+  podSecurityContext:
+    fsGroup: 1000
+
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false  # PG writes temp files + runtime config
+    capabilities:
+      drop: [ALL]
+    seccompProfile:
+      type: RuntimeDefault
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+  podLabels: {}
+
+# Used when timescale.enabled=false
+externalDatabase:
+  host: ""
+  port: 5432
+  user: tracearr
+  database: tracearr
+
+redis:
+  enabled: true
+
+  image:
+    repository: redis
+    tag: 8-alpine@sha256:09160599abd229764c0fb44cb6be640294e1d360a54b19985ab4843dcf2d90f1
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 6379
+
+  args:
+    - redis-server
+    - --appendonly
+    - "yes"
+    - --maxmemory
+    - 384mb
+    - --maxmemory-policy
+    - noeviction  # required by BullMQ
+    - --tcp-keepalive
+    - "300"
+    - --tcp-backlog
+    - "511"
+    - --save
+    - ""  # AOF only, no RDB
+
+  persistence:
+    size: 2Gi
+    storageClass: ""
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+  # redis:8-alpine: UID 999
+  podSecurityContext:
+    fsGroup: 999
+
+  securityContext:
+    runAsUser: 999
+    runAsGroup: 999
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+    seccompProfile:
+      type: RuntimeDefault
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+  podLabels: {}
+
+# Used when redis.enabled=false
+externalRedis:
+  url: ""
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: tracearr.lan.shiba-toast.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: tracearr-tls
+      hosts:
+        - tracearr.lan.shiba-toast.com
+
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+networkPolicy:
+  enabled: false
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
