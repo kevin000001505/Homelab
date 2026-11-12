@@ -23,6 +23,7 @@ spec:
   template:
     metadata:
       labels:
+        homelab/app: actual-budget
         app: actual-ai
         tier: utilities
     spec:

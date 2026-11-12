@@ -15,6 +15,7 @@ spec:
   template:
     metadata:
       labels:
+        homelab/app: trek
         app: trek
         tier: utilities
     spec:

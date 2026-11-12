@@ -98,3 +98,34 @@ spec:
             severity: critical
           annotations:
             summary: "SMART reports {{ $labels.device }} on {{ $labels.instance }} as failing"
+
+    # Which App each pod belongs to (see GLOSSARY.md and docs/adr/0001): one series per pod
+    # with `app` and `kind` (Yours / System). The Kubernetes dashboards join on it.
+    # `app` is the first of these that the pod has: the hand-assigned `homelab/app` label,
+    # app.kubernetes.io/name, k8s-app, app, the name of its Deployment / StatefulSet /
+    # DaemonSet. A namespace that holds a single product is one App named after it.
+    # The pod labels come from kube-state-metrics (metricLabelsAllowlist in
+    # core/prometheus/values.yaml).
+    - name: homelab.apps
+      rules:
+        - record: homelab:pod_app:info
+          expr: |
+            max by (namespace, pod, app, kind) (
+              label_replace(label_replace(
+              label_replace(
+              label_replace(label_replace(label_replace(label_replace(label_replace(
+                (
+                    kube_pod_labels * on (namespace, pod) group_left (workload)
+                      namespace_workload_pod:kube_pod_owner:relabel
+                  or on (namespace, pod) namespace_workload_pod:kube_pod_owner:relabel
+                  or on (namespace, pod) kube_pod_labels
+                ),
+                "app", "$1", "workload", "(.+)"),
+                "app", "$1", "label_app", "(.+)"),
+                "app", "$1", "label_k8s_app", "(.+)"),
+                "app", "$1", "label_app_kubernetes_io_name", "(.+)"),
+                "app", "$1", "label_homelab_app", "(.+)"),
+              "app", "$1", "namespace", "(argocd|cert-manager|ghost)"),
+              "kind", "Yours", "", ""),
+              "kind", "System", "namespace", "(kube-system|argocd|cert-manager)")
+            )

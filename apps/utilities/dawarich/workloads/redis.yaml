@@ -19,6 +19,7 @@ spec:
   template:
     metadata:
       labels:
+        homelab/app: dawarich
         app: dawarich-redis
         tier: utilities
     spec:

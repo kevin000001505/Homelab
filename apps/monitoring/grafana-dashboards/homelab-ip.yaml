@@ -10,10 +10,11 @@ data:
   homelab-ip.json: |
     {
       "uid": "homelab-ip",
-      "title": "Homelab \u00b7 IP lookup",
+      "title": "Homelab \u00b7 IP address",
       "tags": [
         "homelab",
-        "security"
+        "detail",
+        "traffic"
       ],
       "timezone": "browser",
       "editable": true,
@@ -70,6 +71,13 @@ data:
       },
       "links": [
         {
+          "title": "\u2191 Traffic",
+          "type": "link",
+          "icon": "dashboard",
+          "url": "/d/homelab-traffic",
+          "keepTime": true
+        },
+        {
           "title": "Homelab dashboards",
           "type": "dashboards",
           "tags": [
@@ -91,7 +99,7 @@ data:
         {
           "type": "stat",
           "title": "Requests",
-          "description": "Requests NPMPlus logged from this IP. Type an IP above, or click one on the Security dashboard.",
+          "description": "Requests the proxy logged from this IP. Type an IP above, or click one on the Traffic dashboard.",
           "datasource": {
             "type": "loki",
             "uid": "${loki}"
@@ -149,7 +157,7 @@ data:
         {
           "type": "stat",
           "title": "Attack attempts",
-          "description": "Dropped (444) or exploit-path requests.",
+          "description": "Scanner probes and dropped requests from this IP. WAF blocks are not recorded per IP.",
           "datasource": {
             "type": "loki",
             "uid": "${loki}"
@@ -669,7 +677,7 @@ data:
               "id": "organize",
               "options": {
                 "renameByName": {
-                  "vhost": "Host",
+                  "vhost": "Site",
                   "path": "Path",
                   "status": "Status",
                   "Value #A": "Requests",
@@ -688,7 +696,7 @@ data:
               "options": {
                 "include": {
                   "names": [
-                    "Host",
+                    "Site",
                     "Path",
                     "Status",
                     "Requests"

@@ -1,0 +1,29 @@
+# node-exporter for TrueNAS (192.168.1.203), so k3s Prometheus can scrape it on :9100.
+# It gives the Proxmox dashboard the memory in use inside the TrueNAS VM; Proxmox itself
+# only sees that the VM holds all of its RAM.
+#
+# TrueNAS is an appliance with SSH switched off, so this is not a script. In the TrueNAS
+# web UI: Apps -> Discover Apps -> menu (three dots) -> Install via YAML, name it
+# "node-exporter" and paste the `services:` block below. Needs TrueNAS 24.10 or newer.
+#
+# Without "Install via YAML", run the same container from System -> Shell (24.10 or newer,
+# where apps run on Docker). Unmanaged by the Apps page: it survives reboots, but check
+# that it is still running after a TrueNAS upgrade.
+#
+#   sudo docker run -d --name node-exporter --restart unless-stopped \
+#     --net host --pid host -v /:/host:ro,rslave \
+#     quay.io/prometheus/node-exporter:v1.9.1 --path.rootfs=/host
+#
+# Not installed yet (skipped 2026-11-12), so the Proxmox dashboard shows TrueNAS as
+# "not measured". After installing, add 192.168.1.203:9100 with hostname "TrueNAS" to
+# node-exporter-guests in apps/monitoring/prometheus/scrapeconfigs-proxmox.yaml.
+services:
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:v1.9.1
+    command:
+      - --path.rootfs=/host
+    network_mode: host
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - /:/host:ro,rslave

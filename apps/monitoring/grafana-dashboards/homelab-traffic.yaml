@@ -2,18 +2,19 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboard-homelab-crowdsec
+  name: grafana-dashboard-homelab-traffic
   namespace: monitoring
   labels:
     grafana_dashboard: "1"
 data:
-  homelab-crowdsec.json: |
+  homelab-traffic.json: |
     {
-      "uid": "homelab-crowdsec",
-      "title": "Homelab \u00b7 Security",
+      "uid": "homelab-traffic",
+      "title": "Homelab \u00b7 Traffic",
       "tags": [
         "homelab",
-        "security"
+        "domain",
+        "traffic"
       ],
       "timezone": "browser",
       "editable": true,
@@ -37,6 +38,35 @@ data:
             "refresh": 1,
             "regex": "",
             "options": []
+          },
+          {
+            "name": "vhost",
+            "label": "Site",
+            "type": "query",
+            "datasource": {
+              "type": "loki",
+              "uid": "${loki}"
+            },
+            "query": {
+              "label": "vhost",
+              "stream": "{job=\"nginx\", host=\"npmplus\"}",
+              "type": 1,
+              "refId": "vhost"
+            },
+            "definition": "{\"label\": \"vhost\", \"stream\": \"{job=\\\"nginx\\\", host=\\\"npmplus\\\"}\", \"type\": 1, \"refId\": \"vhost\"}",
+            "regex": "/^[a-z0-9-]+\\.(lan\\.)?shiba-toast\\.com$/",
+            "refresh": 2,
+            "includeAll": true,
+            "multi": true,
+            "current": {
+              "selected": true,
+              "text": "All",
+              "value": "$__all"
+            },
+            "sort": 1,
+            "hide": 0,
+            "options": [],
+            "allValue": ".*shiba-toast\\\\.com"
           }
         ]
       },
@@ -58,6 +88,13 @@ data:
       },
       "links": [
         {
+          "title": "\u2191 Wall",
+          "type": "link",
+          "icon": "dashboard",
+          "url": "/d/homelab-wall",
+          "keepTime": false
+        },
+        {
           "title": "Homelab dashboards",
           "type": "dashboards",
           "tags": [
@@ -71,7 +108,7 @@ data:
       "panels": [
         {
           "type": "row",
-          "title": "Are we under attack? (selected time range)",
+          "title": "From the internet (selected time range)",
           "collapsed": false,
           "panels": [],
           "gridPos": {
@@ -84,8 +121,8 @@ data:
         },
         {
           "type": "stat",
-          "title": "Attack attempts",
-          "description": "Internet requests NPMPlus dropped (444) or that went for exploit paths.",
+          "title": "Requests",
+          "description": "Requests that reached the reverse proxy from the internet.",
           "datasource": {
             "type": "loki",
             "uid": "${loki}"
@@ -96,7 +133,7 @@ data:
                 "type": "loki",
                 "uid": "${loki}"
               },
-              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range]))",
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} [$__range]))",
               "legendFormat": "",
               "refId": "A",
               "queryType": "instant"
@@ -105,11 +142,12 @@ data:
           "fieldConfig": {
             "defaults": {
               "custom": {},
+              "unit": "short",
               "noValue": "0",
               "decimals": 0,
               "color": {
                 "mode": "fixed",
-                "fixedColor": "orange"
+                "fixedColor": "blue"
               }
             },
             "overrides": []
@@ -142,8 +180,8 @@ data:
         },
         {
           "type": "stat",
-          "title": "Scanner probes",
-          "description": "Requests for /.env, /.git, wp-admin, phpmyadmin, path traversal ... Your apps never serve these, so every hit is a bot looking for a hole.",
+          "title": "Server errors",
+          "description": "5xx answers to requests from the internet. The log lines are at the bottom of this page.",
           "datasource": {
             "type": "loki",
             "uid": "${loki}"
@@ -154,7 +192,7 @@ data:
                 "type": "loki",
                 "uid": "${loki}"
               },
-              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range]))",
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=~\"5..\"} [$__range]))",
               "legendFormat": "",
               "refId": "A",
               "queryType": "instant"
@@ -167,7 +205,7 @@ data:
               "decimals": 0,
               "color": {
                 "mode": "fixed",
-                "fixedColor": "orange"
+                "fixedColor": "red"
               }
             },
             "overrides": []
@@ -200,11 +238,11 @@ data:
         },
         {
           "type": "stat",
-          "title": "Dropped by NPMPlus (444)",
-          "description": "NPMPlus closed the connection without answering: the request used your bare IP, an unknown hostname, or a LAN-only site from outside.",
+          "title": "Attack attempts",
+          "description": "Scanner probes + dropped requests + WAF blocks: the three tiles below. A request that is both a probe and dropped counts once.",
           "datasource": {
-            "type": "loki",
-            "uid": "${loki}"
+            "type": "datasource",
+            "uid": "-- Mixed --"
           },
           "targets": [
             {
@@ -212,175 +250,12 @@ data:
                 "type": "loki",
                 "uid": "${loki}"
               },
-              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=\"444\"} [$__range]))",
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range])) or vector(0)",
               "legendFormat": "",
               "refId": "A",
-              "queryType": "instant"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "noValue": "0",
-              "decimals": 0,
-              "color": {
-                "mode": "fixed",
-                "fixedColor": "orange"
-              }
+              "queryType": "instant",
+              "hide": true
             },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "interval": "1m",
-          "gridPos": {
-            "x": 12,
-            "y": 1,
-            "w": 6,
-            "h": 4
-          },
-          "id": 4
-        },
-        {
-          "type": "stat",
-          "title": "Failed logins",
-          "description": "401/403 answers to internet clients (Plex excluded, it 401s every app poll). A burst from one IP is someone guessing passwords.",
-          "datasource": {
-            "type": "loki",
-            "uid": "${loki}"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${loki}"
-              },
-              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=~\"401|403\", vhost!=\"plex.shiba-toast.com\"} [$__range]))",
-              "legendFormat": "",
-              "refId": "A",
-              "queryType": "instant"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "noValue": "0",
-              "decimals": 0,
-              "color": {
-                "mode": "fixed",
-                "fixedColor": "orange"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "interval": "1m",
-          "gridPos": {
-            "x": 18,
-            "y": 1,
-            "w": 6,
-            "h": 4
-          },
-          "id": 5
-        },
-        {
-          "type": "stat",
-          "title": "Attacker IPs",
-          "description": "Distinct IPs behind the attack attempts.",
-          "datasource": {
-            "type": "loki",
-            "uid": "${loki}"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${loki}"
-              },
-              "expr": "count(sum by (client_ip) (count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range])))",
-              "legendFormat": "",
-              "refId": "A",
-              "queryType": "instant"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "noValue": "0",
-              "decimals": 0,
-              "color": {
-                "mode": "fixed",
-                "fixedColor": "orange"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "textMode": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "justifyMode": "center",
-            "wideLayout": true,
-            "text": {
-              "titleSize": 14
-            }
-          },
-          "interval": "1m",
-          "gridPos": {
-            "x": 0,
-            "y": 5,
-            "w": 6,
-            "h": 4
-          },
-          "id": 6
-        },
-        {
-          "type": "stat",
-          "title": "WAF blocks",
-          "description": "Requests CrowdSec's AppSec (WAF) rules blocked.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
             {
               "datasource": {
                 "type": "prometheus",
@@ -388,18 +263,57 @@ data:
               },
               "expr": "sum(increase(cs_appsec_block_total[$__range])) or vector(0)",
               "legendFormat": "",
-              "refId": "A",
+              "refId": "B",
               "instant": true,
-              "range": false
+              "range": false,
+              "hide": true
+            },
+            {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "type": "reduce",
+              "expression": "A",
+              "reducer": "last",
+              "settings": {
+                "mode": "dropNN"
+              },
+              "refId": "C",
+              "hide": true
+            },
+            {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "type": "reduce",
+              "expression": "B",
+              "reducer": "last",
+              "settings": {
+                "mode": "dropNN"
+              },
+              "refId": "D",
+              "hide": true
+            },
+            {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "type": "math",
+              "expression": "$C + $D",
+              "refId": "E"
             }
           ],
           "fieldConfig": {
             "defaults": {
               "custom": {},
+              "noValue": "0",
               "decimals": 0,
               "color": {
                 "mode": "fixed",
-                "fixedColor": "red"
+                "fixedColor": "orange"
               }
             },
             "overrides": []
@@ -422,12 +336,12 @@ data:
             }
           },
           "gridPos": {
-            "x": 6,
-            "y": 5,
+            "x": 12,
+            "y": 1,
             "w": 6,
             "h": 4
           },
-          "id": 7
+          "id": 4
         },
         {
           "type": "stat",
@@ -480,17 +394,133 @@ data:
           },
           "interval": "1m",
           "gridPos": {
-            "x": 12,
+            "x": 18,
+            "y": 1,
+            "w": 6,
+            "h": 4
+          },
+          "id": 5
+        },
+        {
+          "type": "stat",
+          "title": "Scanner probes",
+          "description": "Requests for /.env, /.git, wp-admin, phpmyadmin, path traversal ... Your apps never serve these, so every hit is a bot looking for a hole.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range]))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "orange"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
             "y": 5,
             "w": 6,
             "h": 4
           },
-          "id": 8
+          "id": 6
         },
         {
           "type": "stat",
-          "title": "Banned IPs turned away",
-          "description": "NPMPlus asked CrowdSec about a client and got a ban back, so it refused the request. Proof the bans are doing their job.",
+          "title": "Dropped requests",
+          "description": "The proxy closed the connection without answering (444): the request used your bare IP, an unknown hostname, or a LAN-only site from outside.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=\"444\"} [$__range]))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "orange"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 6,
+            "y": 5,
+            "w": 6,
+            "h": 4
+          },
+          "id": 7
+        },
+        {
+          "type": "stat",
+          "title": "WAF blocks",
+          "description": "Requests refused because their content matched a known exploit (CrowdSec AppSec).",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -501,7 +531,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(increase(cs_lapi_decisions_ok_total[$__range])) or vector(0)",
+              "expr": "sum(increase(cs_appsec_block_total[$__range])) or vector(0)",
               "legendFormat": "",
               "refId": "A",
               "instant": true,
@@ -511,10 +541,11 @@ data:
           "fieldConfig": {
             "defaults": {
               "custom": {},
+              "noValue": "0",
               "decimals": 0,
               "color": {
                 "mode": "fixed",
-                "fixedColor": "green"
+                "fixedColor": "orange"
               }
             },
             "overrides": []
@@ -537,6 +568,64 @@ data:
             }
           },
           "gridPos": {
+            "x": 12,
+            "y": 5,
+            "w": 6,
+            "h": 4
+          },
+          "id": 8
+        },
+        {
+          "type": "stat",
+          "title": "Failed logins",
+          "description": "401/403 answers to internet clients (Plex excluded, it 401s every app poll). Not an Attack attempt: one of these is usually you mistyping. A burst from one IP is someone guessing passwords, and ends in a ban.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=~\"401|403\", vhost!=\"plex.shiba-toast.com\"} [$__range]))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "yellow"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
             "x": 18,
             "y": 5,
             "w": 6,
@@ -545,9 +634,22 @@ data:
           "id": 9
         },
         {
+          "type": "row",
+          "title": "Attack attempts",
+          "collapsed": false,
+          "panels": [],
+          "gridPos": {
+            "x": 0,
+            "y": 9,
+            "w": 24,
+            "h": 1
+          },
+          "id": 10
+        },
+        {
           "type": "timeseries",
-          "title": "Attack attempts per hour",
-          "description": "Spikes are someone scanning or brute-forcing you. Steady low bars are the internet's usual background noise.",
+          "title": "Attack attempts per hour by type",
+          "description": "Spikes are someone scanning you. Steady low bars are the internet's usual background noise.",
           "datasource": {
             "type": "datasource",
             "uid": "-- Mixed --"
@@ -569,28 +671,8 @@ data:
                 "uid": "${loki}"
               },
               "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=\"444\"} [1h]))",
-              "legendFormat": "dropped (444)",
+              "legendFormat": "dropped requests",
               "refId": "B",
-              "queryType": "range"
-            },
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${loki}"
-              },
-              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=~\"401|403\", vhost!=\"plex.shiba-toast.com\"} [1h]))",
-              "legendFormat": "failed logins",
-              "refId": "C",
-              "queryType": "range"
-            },
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${loki}"
-              },
-              "expr": "sum(count_over_time({job=\"crowdsec\"} |= \" on Ip \" | logfmt | line_format \"{{.msg}}\" | regexp `^\\((?P<machine>[^)]+)\\) (?P<scenario>\\S+) by ip (?P<ip>\\S+) \\((?P<country>[A-Z]*)/?(?P<asn>\\d*)\\) : (?P<duration>\\S+) (?P<ban>\\S+) on` [1h]))",
-              "legendFormat": "bans",
-              "refId": "D",
               "queryType": "range"
             },
             {
@@ -600,7 +682,7 @@ data:
               },
               "expr": "sum(increase(cs_appsec_block_total[1h]))",
               "legendFormat": "WAF blocks",
-              "refId": "E",
+              "refId": "C",
               "instant": false,
               "range": true
             }
@@ -636,11 +718,11 @@ data:
           "interval": "1h",
           "gridPos": {
             "x": 0,
-            "y": 9,
+            "y": 10,
             "w": 24,
             "h": 8
           },
-          "id": 10
+          "id": 11
         },
         {
           "type": "table",
@@ -770,265 +852,11 @@ data:
           "interval": "1m",
           "gridPos": {
             "x": 0,
-            "y": 17,
-            "w": 12,
-            "h": 10
-          },
-          "id": 11
-        },
-        {
-          "type": "table",
-          "title": "What they went for",
-          "description": "Hosts and paths of the attack attempts. 444 rows on a bare IP are bots sweeping the internet, not aimed at you.",
-          "datasource": {
-            "type": "loki",
-            "uid": "${loki}"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${loki}"
-              },
-              "expr": "topk(20, sum by (vhost, path) (count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range])))",
-              "legendFormat": "",
-              "refId": "A",
-              "queryType": "instant"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {}
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Attempts"
-                },
-                "properties": [
-                  {
-                    "id": "custom.cellOptions",
-                    "value": {
-                      "type": "gauge",
-                      "mode": "basic",
-                      "valueDisplayMode": "text"
-                    }
-                  },
-                  {
-                    "id": "color",
-                    "value": {
-                      "mode": "fixed",
-                      "fixedColor": "orange"
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          "options": {
-            "showHeader": true,
-            "cellHeight": "md",
-            "footer": {
-              "show": false
-            }
-          },
-          "transformations": [
-            {
-              "id": "labelsToFields",
-              "options": {
-                "mode": "columns"
-              }
-            },
-            {
-              "id": "merge",
-              "options": {}
-            },
-            {
-              "id": "organize",
-              "options": {
-                "renameByName": {
-                  "vhost": "Host",
-                  "path": "Path",
-                  "Value #A": "Attempts",
-                  "Value": "Attempts"
-                },
-                "excludeByName": {},
-                "indexByName": {
-                  "vhost": 0,
-                  "path": 1
-                }
-              }
-            },
-            {
-              "id": "filterFieldsByName",
-              "options": {
-                "include": {
-                  "names": [
-                    "Host",
-                    "Path",
-                    "Attempts"
-                  ]
-                }
-              }
-            },
-            {
-              "id": "sortBy",
-              "options": {
-                "sort": [
-                  {
-                    "field": "Attempts",
-                    "desc": true
-                  }
-                ]
-              }
-            }
-          ],
-          "interval": "1m",
-          "gridPos": {
-            "x": 12,
-            "y": 17,
+            "y": 18,
             "w": 12,
             "h": 10
           },
           "id": 12
-        },
-        {
-          "type": "table",
-          "title": "Failed logins by IP",
-          "description": "Click an IP to see everything it did.",
-          "datasource": {
-            "type": "loki",
-            "uid": "${loki}"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${loki}"
-              },
-              "expr": "topk(20, sum by (client_ip, vhost, geoip_country_name) (count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=~\"401|403\", vhost!=\"plex.shiba-toast.com\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` [$__range])))",
-              "legendFormat": "",
-              "refId": "A",
-              "queryType": "instant"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {}
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Failures"
-                },
-                "properties": [
-                  {
-                    "id": "custom.cellOptions",
-                    "value": {
-                      "type": "gauge",
-                      "mode": "basic",
-                      "valueDisplayMode": "text"
-                    }
-                  },
-                  {
-                    "id": "color",
-                    "value": {
-                      "mode": "fixed",
-                      "fixedColor": "orange"
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "IP"
-                },
-                "properties": [
-                  {
-                    "id": "links",
-                    "value": [
-                      {
-                        "title": "Everything ${__value.raw} did",
-                        "url": "/d/homelab-ip?var-ip=${__value.raw}&from=now-7d&to=now"
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "options": {
-            "showHeader": true,
-            "cellHeight": "md",
-            "footer": {
-              "show": false
-            }
-          },
-          "transformations": [
-            {
-              "id": "labelsToFields",
-              "options": {
-                "mode": "columns"
-              }
-            },
-            {
-              "id": "merge",
-              "options": {}
-            },
-            {
-              "id": "organize",
-              "options": {
-                "renameByName": {
-                  "client_ip": "IP",
-                  "vhost": "Host",
-                  "geoip_country_name": "Country",
-                  "Value #A": "Failures",
-                  "Value": "Failures"
-                },
-                "excludeByName": {},
-                "indexByName": {
-                  "client_ip": 0,
-                  "vhost": 1,
-                  "geoip_country_name": 2
-                }
-              }
-            },
-            {
-              "id": "filterFieldsByName",
-              "options": {
-                "include": {
-                  "names": [
-                    "IP",
-                    "Host",
-                    "Country",
-                    "Failures"
-                  ]
-                }
-              }
-            },
-            {
-              "id": "sortBy",
-              "options": {
-                "sort": [
-                  {
-                    "field": "Failures",
-                    "desc": true
-                  }
-                ]
-              }
-            }
-          ],
-          "interval": "1m",
-          "gridPos": {
-            "x": 0,
-            "y": 27,
-            "w": 12,
-            "h": 10
-          },
-          "id": 13
         },
         {
           "type": "table",
@@ -1136,24 +964,461 @@ data:
           "interval": "1m",
           "gridPos": {
             "x": 12,
-            "y": 27,
+            "y": 18,
+            "w": 12,
+            "h": 10
+          },
+          "id": 13
+        },
+        {
+          "type": "table",
+          "title": "What they went for",
+          "description": "Sites and paths of the attack attempts. Dropped requests to a bare IP are bots sweeping the internet, not aimed at you.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "topk(20, sum by (vhost, path) (count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range])))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Attempts"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "gauge",
+                      "mode": "basic",
+                      "valueDisplayMode": "text"
+                    }
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "orange"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "md",
+            "footer": {
+              "show": false
+            }
+          },
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "mode": "columns"
+              }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "vhost": "Site",
+                  "path": "Path",
+                  "Value #A": "Attempts",
+                  "Value": "Attempts"
+                },
+                "excludeByName": {},
+                "indexByName": {
+                  "vhost": 0,
+                  "path": 1
+                }
+              }
+            },
+            {
+              "id": "filterFieldsByName",
+              "options": {
+                "include": {
+                  "names": [
+                    "Site",
+                    "Path",
+                    "Attempts"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Attempts",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 28,
             "w": 12,
             "h": 10
           },
           "id": 14
         },
         {
+          "type": "stat",
+          "title": "Attacker IPs",
+          "description": "Distinct IPs behind the scanner probes and dropped requests.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "count(sum by (client_ip) (count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*` [$__range])))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "orange"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 12,
+            "y": 28,
+            "w": 6,
+            "h": 5
+          },
+          "id": 15
+        },
+        {
+          "type": "stat",
+          "title": "Banned IPs turned away",
+          "description": "The proxy asked CrowdSec about a client and got a ban back, so it refused the request. Proof the bans are doing their job.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(increase(cs_lapi_decisions_ok_total[$__range])) or vector(0)",
+              "legendFormat": "",
+              "refId": "A",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "noValue": "0",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "green"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "justifyMode": "center",
+            "wideLayout": true,
+            "text": {
+              "titleSize": 14
+            }
+          },
+          "gridPos": {
+            "x": 18,
+            "y": 28,
+            "w": 6,
+            "h": 5
+          },
+          "id": 16
+        },
+        {
           "type": "row",
-          "title": "Bans",
+          "title": "Failed logins and bans",
           "collapsed": false,
           "panels": [],
           "gridPos": {
             "x": 0,
-            "y": 37,
+            "y": 38,
             "w": 24,
             "h": 1
           },
-          "id": 15
+          "id": 17
+        },
+        {
+          "type": "timeseries",
+          "title": "Failed logins and bans per hour",
+          "description": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=~\"401|403\", vhost!=\"plex.shiba-toast.com\"} [1h]))",
+              "legendFormat": "failed logins",
+              "refId": "A",
+              "queryType": "range"
+            },
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum(count_over_time({job=\"crowdsec\"} |= \" on Ip \" | logfmt | line_format \"{{.msg}}\" | regexp `^\\((?P<machine>[^)]+)\\) (?P<scenario>\\S+) by ip (?P<ip>\\S+) \\((?P<country>[A-Z]*)/?(?P<asn>\\d*)\\) : (?P<duration>\\S+) (?P<ban>\\S+) on` [1h]))",
+              "legendFormat": "bans",
+              "refId": "B",
+              "queryType": "range"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 80,
+                "showPoints": "never",
+                "spanNulls": true,
+                "axisSoftMin": 0,
+                "drawStyle": "bars",
+                "stacking": {
+                  "mode": "normal"
+                }
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "1h",
+          "gridPos": {
+            "x": 0,
+            "y": 39,
+            "w": 12,
+            "h": 10
+          },
+          "id": 18
+        },
+        {
+          "type": "table",
+          "title": "Failed logins by IP",
+          "description": "Click an IP to see everything it did.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "topk(20, sum by (client_ip, vhost, geoip_country_name) (count_over_time({job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=~\"401|403\", vhost!=\"plex.shiba-toast.com\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` [$__range])))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Failures"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "gauge",
+                      "mode": "basic",
+                      "valueDisplayMode": "text"
+                    }
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "orange"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "IP"
+                },
+                "properties": [
+                  {
+                    "id": "links",
+                    "value": [
+                      {
+                        "title": "Everything ${__value.raw} did",
+                        "url": "/d/homelab-ip?var-ip=${__value.raw}&from=now-7d&to=now"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "md",
+            "footer": {
+              "show": false
+            }
+          },
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "mode": "columns"
+              }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "client_ip": "IP",
+                  "vhost": "Site",
+                  "geoip_country_name": "Country",
+                  "Value #A": "Failures",
+                  "Value": "Failures"
+                },
+                "excludeByName": {},
+                "indexByName": {
+                  "client_ip": 0,
+                  "vhost": 1,
+                  "geoip_country_name": 2
+                }
+              }
+            },
+            {
+              "id": "filterFieldsByName",
+              "options": {
+                "include": {
+                  "names": [
+                    "IP",
+                    "Site",
+                    "Country",
+                    "Failures"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Failures",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "interval": "1m",
+          "gridPos": {
+            "x": 12,
+            "y": 39,
+            "w": 12,
+            "h": 10
+          },
+          "id": 19
         },
         {
           "type": "table",
@@ -1260,11 +1525,11 @@ data:
           "interval": "1m",
           "gridPos": {
             "x": 0,
-            "y": 38,
+            "y": 49,
             "w": 24,
             "h": 10
           },
-          "id": 16
+          "id": 20
         },
         {
           "type": "table",
@@ -1372,16 +1637,16 @@ data:
           "interval": "1m",
           "gridPos": {
             "x": 0,
-            "y": 48,
+            "y": 59,
             "w": 12,
             "h": 9
           },
-          "id": 17
+          "id": 21
         },
         {
           "type": "timeseries",
           "title": "Scenarios triggered",
-          "description": "",
+          "description": "The behaviour that crossed a limit and led to each ban.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1430,11 +1695,866 @@ data:
           },
           "gridPos": {
             "x": 12,
-            "y": 48,
+            "y": 59,
             "w": 12,
             "h": 9
           },
-          "id": 18
+          "id": 22
+        },
+        {
+          "type": "row",
+          "title": "All requests through the proxy (internet and LAN, Site menu applies)",
+          "collapsed": false,
+          "panels": [],
+          "gridPos": {
+            "x": 0,
+            "y": 68,
+            "w": 24,
+            "h": 1
+          },
+          "id": 23
+        },
+        {
+          "type": "timeseries",
+          "title": "Requests per second by site",
+          "description": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum by (vhost) (rate({job=\"nginx\", host=\"npmplus\", vhost=~\"$vhost\"} [$__auto]))",
+              "legendFormat": "{{vhost}}",
+              "refId": "A",
+              "queryType": "range"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 8,
+                "showPoints": "never",
+                "spanNulls": true,
+                "axisSoftMin": 0
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "width": 520,
+              "calcs": [
+                "mean",
+                "lastNotNull"
+              ],
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 69,
+            "w": 24,
+            "h": 10
+          },
+          "id": 24
+        },
+        {
+          "type": "timeseries",
+          "title": "p95 response time by site",
+          "description": "nginx $request_time: full time to serve the request, including the upstream app. Websocket/stream paths and requests held open over 10 minutes are excluded.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "quantile_over_time(0.95, {job=\"nginx\", host=\"npmplus\", vhost=~\"$vhost\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | path !~ \"(?i).*(socket|stream|/ws/|websocket|events|sse).*\" | rt < 600 | unwrap rt | __error__=\"\" [$__auto]) by (vhost)",
+              "legendFormat": "{{vhost}}",
+              "refId": "A",
+              "queryType": "range"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 8,
+                "showPoints": "never",
+                "spanNulls": true,
+                "axisSoftMin": 0
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "width": 520,
+              "calcs": [
+                "mean",
+                "lastNotNull"
+              ],
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 79,
+            "w": 24,
+            "h": 10
+          },
+          "id": 25
+        },
+        {
+          "type": "timeseries",
+          "title": "Responses by status",
+          "description": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum by (status) (count_over_time({job=\"nginx\", host=\"npmplus\", vhost=~\"$vhost\"} [$__auto]))",
+              "legendFormat": "{{status}}",
+              "refId": "A",
+              "queryType": "range"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 80,
+                "showPoints": "never",
+                "spanNulls": true,
+                "axisSoftMin": 0,
+                "drawStyle": "bars",
+                "stacking": {
+                  "mode": "normal"
+                }
+              },
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "^2.."
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "green"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "^3.."
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "blue"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "^4.."
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "orange"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "^5.."
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "red"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 89,
+            "w": 12,
+            "h": 10
+          },
+          "id": 26
+        },
+        {
+          "type": "timeseries",
+          "title": "Response time percentiles (selected sites)",
+          "description": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "quantile_over_time(0.5, {job=\"nginx\", host=\"npmplus\", vhost=~\"$vhost\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | path !~ \"(?i).*(socket|stream|/ws/|websocket|events|sse).*\" | rt < 600 | unwrap rt | __error__=\"\" [$__auto]) by ()",
+              "legendFormat": "p50",
+              "refId": "A",
+              "queryType": "range"
+            },
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "quantile_over_time(0.95, {job=\"nginx\", host=\"npmplus\", vhost=~\"$vhost\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | path !~ \"(?i).*(socket|stream|/ws/|websocket|events|sse).*\" | rt < 600 | unwrap rt | __error__=\"\" [$__auto]) by ()",
+              "legendFormat": "p95",
+              "refId": "B",
+              "queryType": "range"
+            },
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "quantile_over_time(0.99, {job=\"nginx\", host=\"npmplus\", vhost=~\"$vhost\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | path !~ \"(?i).*(socket|stream|/ws/|websocket|events|sse).*\" | rt < 600 | unwrap rt | __error__=\"\" [$__auto]) by ()",
+              "legendFormat": "p99",
+              "refId": "C",
+              "queryType": "range"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 8,
+                "showPoints": "never",
+                "spanNulls": true,
+                "axisSoftMin": 0
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 12,
+            "y": 89,
+            "w": 12,
+            "h": 10
+          },
+          "id": 27
+        },
+        {
+          "type": "table",
+          "title": "Top countries",
+          "description": "Internet clients only: LAN traffic has no GeoIP data.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "topk(15, sum by (geoip_country_name) (count_over_time({job=\"nginx\", host=\"npmplus\", vhost=~\"$vhost\", geoip_country_name!=\"\"} [$__range])))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Requests"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "gauge",
+                      "mode": "basic",
+                      "valueDisplayMode": "text"
+                    }
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "blue"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "md",
+            "footer": {
+              "show": false
+            }
+          },
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "mode": "columns"
+              }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "Value #A": "Requests",
+                  "Value": "Requests",
+                  "geoip_country_name": "Country"
+                },
+                "excludeByName": {},
+                "indexByName": {}
+              }
+            },
+            {
+              "id": "filterFieldsByName",
+              "options": {
+                "include": {
+                  "names": [
+                    "Country",
+                    "Requests"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Requests",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 99,
+            "w": 8,
+            "h": 12
+          },
+          "id": 28
+        },
+        {
+          "type": "table",
+          "title": "Top client IPs",
+          "description": "Click an IP to see everything it did.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "topk(15, sum by (client_ip) (count_over_time({job=\"nginx\", host=\"npmplus\", vhost=~\"$vhost\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` [$__range])))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Requests"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "gauge",
+                      "mode": "basic",
+                      "valueDisplayMode": "text"
+                    }
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "blue"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Client IP"
+                },
+                "properties": [
+                  {
+                    "id": "links",
+                    "value": [
+                      {
+                        "title": "Everything ${__value.raw} did",
+                        "url": "/d/homelab-ip?var-ip=${__value.raw}&from=now-7d&to=now"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "md",
+            "footer": {
+              "show": false
+            }
+          },
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "mode": "columns"
+              }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "Value #A": "Requests",
+                  "Value": "Requests",
+                  "client_ip": "Client IP"
+                },
+                "excludeByName": {},
+                "indexByName": {}
+              }
+            },
+            {
+              "id": "filterFieldsByName",
+              "options": {
+                "include": {
+                  "names": [
+                    "Client IP",
+                    "Requests"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Requests",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "interval": "1m",
+          "gridPos": {
+            "x": 8,
+            "y": 99,
+            "w": 8,
+            "h": 12
+          },
+          "id": 29
+        },
+        {
+          "type": "geomap",
+          "title": "Where internet requests come from",
+          "description": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "sum by (geoip_location_latitude, geoip_location_longitude, geoip_city_name) (count_over_time({job=\"nginx\", host=\"npmplus\", vhost=~\"$vhost\"} | geoip_location_latitude!=\"\" [$__range]))",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "instant"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "options": {
+            "view": {
+              "id": "coords",
+              "lat": 30,
+              "lon": -30,
+              "zoom": 1.5
+            },
+            "controls": {
+              "showZoom": true,
+              "mouseWheelZoom": true
+            },
+            "basemap": {
+              "type": "osm-standard",
+              "name": "OpenStreetMap",
+              "config": {}
+            },
+            "layers": [
+              {
+                "type": "markers",
+                "name": "Requests",
+                "location": {
+                  "mode": "coords",
+                  "latitude": "geoip_location_latitude",
+                  "longitude": "geoip_location_longitude"
+                },
+                "config": {
+                  "size": {
+                    "field": "Value #A",
+                    "min": 4,
+                    "max": 18,
+                    "fixed": 6
+                  },
+                  "color": {
+                    "fixed": "red"
+                  },
+                  "fillOpacity": 0.5,
+                  "showLegend": false
+                },
+                "tooltip": true
+              }
+            ],
+            "tooltip": {
+              "mode": "details"
+            }
+          },
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "mode": "columns"
+              }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "convertFieldType",
+              "options": {
+                "conversions": [
+                  {
+                    "targetField": "geoip_location_latitude",
+                    "destinationType": "number"
+                  },
+                  {
+                    "targetField": "geoip_location_longitude",
+                    "destinationType": "number"
+                  }
+                ]
+              }
+            }
+          ],
+          "interval": "1m",
+          "gridPos": {
+            "x": 16,
+            "y": 99,
+            "w": 8,
+            "h": 12
+          },
+          "id": 30
+        },
+        {
+          "type": "row",
+          "title": "Log lines",
+          "collapsed": false,
+          "panels": [],
+          "gridPos": {
+            "x": 0,
+            "y": 111,
+            "w": 24,
+            "h": 1
+          },
+          "id": 31
+        },
+        {
+          "type": "logs",
+          "title": "Attack requests (scanner probes and dropped requests)",
+          "description": "The requests behind the Attack attempts number, newest first. For one IP's full history, click the IP in a table above.",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "{job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | status=\"444\" or path=~`(?i).*(/\\.env|/\\.git/|wp-(admin|login|includes|content)|xmlrpc\\.php|phpmyadmin|/cgi-bin/|/actuator|\\.\\./|etc/passwd|phpunit|boaform|HNAP1|/\\.aws/|server-status|SDK/webLanguage|\\.php$).*`",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "range"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": false,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "dedupStrategy": "none"
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 112,
+            "w": 24,
+            "h": 10
+          },
+          "id": 32
+        },
+        {
+          "type": "logs",
+          "title": "Failed logins",
+          "description": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "{job=\"nginx\", host=\"npmplus\", geoip_country_name!=\"\", status=~\"401|403\", vhost!=\"plex.shiba-toast.com\"}",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "range"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": false,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "dedupStrategy": "none"
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 122,
+            "w": 24,
+            "h": 8
+          },
+          "id": 33
+        },
+        {
+          "type": "logs",
+          "title": "Server errors (5xx)",
+          "description": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "{job=\"nginx\", host=\"npmplus\", vhost=~\"$vhost\", status=~\"5..\"}",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "range"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": false,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "dedupStrategy": "none"
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 130,
+            "w": 24,
+            "h": 8
+          },
+          "id": 34
+        },
+        {
+          "type": "logs",
+          "title": "Slow requests (over 2s, excluding websockets/streams)",
+          "description": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "{job=\"nginx\", host=\"npmplus\", vhost=~\"$vhost\"} | regexp `^\\[[^\\]]+\\] \\S+ (?P<client_ip>\\S+) (?P<rt>[0-9.]+) \"\\S+ (?P<path>\\S+)` | path !~ \"(?i).*(socket|stream|/ws/|websocket|events|sse).*\" | rt > 2",
+              "legendFormat": "",
+              "refId": "A",
+              "queryType": "range"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": false,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "dedupStrategy": "none"
+          },
+          "interval": "1m",
+          "gridPos": {
+            "x": 0,
+            "y": 138,
+            "w": 24,
+            "h": 8
+          },
+          "id": 35
         },
         {
           "type": "row",
@@ -1517,11 +2637,11 @@ data:
               },
               "gridPos": {
                 "x": 0,
-                "y": 58,
+                "y": 147,
                 "w": 6,
                 "h": 5
               },
-              "id": 20
+              "id": 37
             },
             {
               "type": "stat",
@@ -1586,11 +2706,11 @@ data:
               },
               "gridPos": {
                 "x": 6,
-                "y": 58,
+                "y": 147,
                 "w": 6,
                 "h": 5
               },
-              "id": 21
+              "id": 38
             },
             {
               "type": "stat",
@@ -1642,11 +2762,11 @@ data:
               },
               "gridPos": {
                 "x": 12,
-                "y": 58,
+                "y": 147,
                 "w": 6,
                 "h": 5
               },
-              "id": 22
+              "id": 39
             },
             {
               "type": "stat",
@@ -1700,11 +2820,11 @@ data:
               },
               "gridPos": {
                 "x": 18,
-                "y": 58,
+                "y": 147,
                 "w": 6,
                 "h": 5
               },
-              "id": 23
+              "id": 40
             },
             {
               "type": "table",
@@ -1802,11 +2922,11 @@ data:
               ],
               "gridPos": {
                 "x": 0,
-                "y": 63,
+                "y": 152,
                 "w": 12,
                 "h": 10
               },
-              "id": 24
+              "id": 41
             },
             {
               "type": "piechart",
@@ -1855,11 +2975,11 @@ data:
               },
               "gridPos": {
                 "x": 12,
-                "y": 63,
+                "y": 152,
                 "w": 12,
                 "h": 10
               },
-              "id": 25
+              "id": 42
             },
             {
               "type": "timeseries",
@@ -1908,11 +3028,11 @@ data:
               },
               "gridPos": {
                 "x": 0,
-                "y": 73,
+                "y": 162,
                 "w": 12,
                 "h": 9
               },
-              "id": 26
+              "id": 43
             },
             {
               "type": "timeseries",
@@ -1971,11 +3091,11 @@ data:
               },
               "gridPos": {
                 "x": 12,
-                "y": 73,
+                "y": 162,
                 "w": 12,
                 "h": 9
               },
-              "id": 27
+              "id": 44
             },
             {
               "type": "timeseries",
@@ -2035,16 +3155,16 @@ data:
               },
               "gridPos": {
                 "x": 0,
-                "y": 82,
+                "y": 171,
                 "w": 12,
                 "h": 9
               },
-              "id": 28
+              "id": 45
             },
             {
               "type": "timeseries",
               "title": "Bouncer lookups per second",
-              "description": "NPMPlus asks CrowdSec about each client IP.",
+              "description": "The proxy asks CrowdSec about each client IP.",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
@@ -2088,16 +3208,16 @@ data:
               },
               "gridPos": {
                 "x": 12,
-                "y": 82,
+                "y": 171,
                 "w": 12,
                 "h": 9
               },
-              "id": 29
+              "id": 46
             },
             {
               "type": "timeseries",
               "title": "Local API p95 latency by route",
-              "description": "/v1/decisions is on the request path: NPMPlus waits for it before serving a new client IP.",
+              "description": "/v1/decisions is on the request path: the proxy waits for it before serving a new client IP.",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
@@ -2147,20 +3267,20 @@ data:
               },
               "gridPos": {
                 "x": 0,
-                "y": 91,
+                "y": 180,
                 "w": 24,
                 "h": 9
               },
-              "id": 30
+              "id": 47
             }
           ],
           "gridPos": {
             "x": 0,
-            "y": 57,
+            "y": 146,
             "w": 24,
             "h": 1
           },
-          "id": 19
+          "id": 36
         }
       ]
     }

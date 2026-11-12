@@ -13,6 +13,11 @@ spec:
         - 192.168.1.5:9100
       labels:
         hostname: Proxmox-Host
+    # Installed by hosts/node-exporter/install.sh
+    - targets:
+        - 192.168.1.6:9100
+      labels:
+        hostname: small-server
   relabelings:
     # Preserve the original job label so existing dashboards keep working.
     - targetLabel: job
@@ -76,7 +81,8 @@ spec:
       targetLabel: name
       replacement: "NPMPlus"
 ---
-# Guest VM node-exporters
+# Guest VM node-exporters. `hostname` must equal the guest's name in Proxmox: the
+# dashboards join the two to show memory in use inside each VM.
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: ScrapeConfig
 metadata:
@@ -91,10 +97,11 @@ spec:
       labels:
         hostname: "Media"
         type: "vm"
+    # Installed by hosts/node-exporter/install.sh
     - targets:
-        - "192.168.1.204:9100"
+        - "192.168.1.41:9100"
       labels:
-        hostname: "Docker-Apps"
+        hostname: "Arr-Application"
         type: "vm"
     - targets:
         - "192.168.1.163:9100"
