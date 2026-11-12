@@ -8,6 +8,10 @@ metadata:
     tier: utilities
 spec:
   replicas: 1
+  strategy:
+    # Single replica on a node-local volume, and k3s-worker has no CPU room for
+    # a surge pod: stop the old pod before starting the new one.
+    type: Recreate
   revisionHistoryLimit: 1
   minReadySeconds: 10
   selector:
@@ -39,7 +43,7 @@ spec:
           command: ["sh", "-c", "until pg_isready -h dawarich-db -p 5432 -U postgres; do sleep 2; done"]
       containers:
         - name: dawarich-app
-          image: freikin/dawarich:1.20.1
+          image: freikin/dawarich:1.22.0
           command: ["web-entrypoint.sh"]
           args: ["bin/rails", "server", "-p", "3000", "-b", "::"]
           imagePullPolicy: IfNotPresent

@@ -193,6 +193,9 @@ config:
               type: uptimekuma
               url: http://uptime-kuma.monitoring.svc.cluster.local
               slug: homelab
+        - Netronome:
+            icon: https://cdn.jsdelivr.net/gh/selfhst/icons/png/netronome.png
+            href: https://netronome.lan.shiba-toast.com
 
     - Networking:
         - Adguard Home:
@@ -203,15 +206,16 @@ config:
             #   url: "{{ HOMEPAGE_VAR_ADGUARD_IP }}"
             #   username: "{{ HOMEPAGE_VAR_ADGUARD_USERNAME }}"
             #   password: "{{ HOMEPAGE_VAR_ADGUARD_PASSWORD }}"
-        - Speedtest Tracker:
-            icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/speedtest-tracker.svg
-            href: https://speedtest.lan.shiba-toast.com
-            widget:
-              type: speedtest
-              url: http://speedtest-tracker.monitoring.svc.cluster.local
-              version: 1
-              key: "{{ HOMEPAGE_VAR_SPEEDTEST_API_KEY }}"
-              bitratePrecision: 0
+        # Speedtest Tracker disabled (see apps/monitoring/speedtest-tracker)
+        # - Speedtest Tracker:
+        #     icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/speedtest-tracker.svg
+        #     href: https://speedtest.lan.shiba-toast.com
+        #     widget:
+        #       type: speedtest
+        #       url: http://speedtest-tracker.monitoring.svc.cluster.local
+        #       version: 1
+        #       key: "{{ HOMEPAGE_VAR_SPEEDTEST_API_KEY }}"
+        #       bitratePrecision: 0
 
     - Storage:
         - TrueNAS:
@@ -297,11 +301,12 @@ ingress:
 env:
   - name: HOMEPAGE_ALLOWED_HOSTS
     value: "homepage.lan.shiba-toast.com"
-  - name: HOMEPAGE_VAR_SPEEDTEST_API_KEY
-    valueFrom:
-      secretKeyRef:
-        name: homepage-secret
-        key: speed-test-api
+  # Speedtest Tracker disabled
+  # - name: HOMEPAGE_VAR_SPEEDTEST_API_KEY
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: homepage-secret
+  #       key: speed-test-api
   - name: HOMEPAGE_VAR_ADGUARD_IP
     valueFrom:
       secretKeyRef:

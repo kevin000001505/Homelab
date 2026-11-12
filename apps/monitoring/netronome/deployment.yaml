@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netronome
+  namespace: monitoring
+  labels:
+    app: netronome
+    tier: monitoring
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # SQLite on a RWO hostPath volume: never run two pods at once
+  selector:
+    matchLabels:
+      app: netronome
+      tier: monitoring
+  template:
+    metadata:
+      labels:
+        app: netronome
+        tier: monitoring
+    spec:
+      securityContext:
+        sysctls:
+          # Lets the non-root user send ICMP without raw sockets (ping / packet-loss monitors)
+          - name: net.ipv4.ping_group_range
+            value: "0 2147483647"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: netronome-pvc
+      initContainers:
+        # hostPath ignores fsGroup, so hand /data to the UID the app runs as.
+        # Replaces the docs' manual "chown netronome:netronome /data" step.
+        - name: fix-permissions
+          image: busybox:1.37.0
+          command: ["sh", "-c", "chown -R 1000:1000 /data"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      containers:
+        - name: netronome
+          image: ghcr.io/autobrr/netronome:v0.16.0
+          imagePullPolicy: IfNotPresent
+          # First start: generate config.toml (random session secret, so logins
+          # survive restarts). Replaces the docs' manual generate-config step.
+          # SQLite lands next to it at /data/netronome.db.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              [ -f /data/config.toml ] || netronome generate-config --config /data/config.toml
+              exec /sbin/tini -- netronome serve --config /data/config.toml
+          ports:
+            - name: http
+              containerPort: 7575
+              protocol: TCP
+          env:
+            - name: NETRONOME__HOST
+              value: "0.0.0.0"
+            - name: NETRONOME__PORT
+              value: "7575"
+            - name: NETRONOME__CHECK_FOR_UPDATES
+              value: "false" # updates come from the image-update workflow
+            # Skip Netronome's own login: Authentik guards the ingress. Netronome checks
+            # this against the direct peer IP (AUTH_TRUSTED_PROXIES is left unset, so
+            # X-Forwarded-For is ignored), which is the Traefik pod on the k3s pod network.
+            # Side effect: any pod in the cluster can also reach it without a login.
+            - name: NETRONOME__AUTH_WHITELIST
+              value: "10.42.0.0/16"
+            - name: TZ
+              value: "America/New_York"
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            capabilities:
+              add: ["NET_RAW"] # MTR and privileged ping, as in upstream compose
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              # Idle between tests; k3s-worker has ~40m of CPU requests left.
+              # No CPU limit, so speed tests can still burst.
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netronome
+  namespace: monitoring
+  labels:
+    app: netronome
+    tier: monitoring
+spec:
+  type: ClusterIP
+  selector:
+    app: netronome
+    tier: monitoring
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

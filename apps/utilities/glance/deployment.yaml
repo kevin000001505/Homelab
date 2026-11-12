@@ -111,7 +111,7 @@ spec:
               mountPath: /config
       containers:
         - name: glance
-          image: glanceapp/glance:v0.8.7
+          image: glanceapp/glance:v0.8.8
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

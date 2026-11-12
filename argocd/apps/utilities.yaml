@@ -24,8 +24,6 @@ spec:
             exclude: true
           - path: apps/utilities/n8n
             exclude: true
-          - path: apps/utilities/pocketID
-            exclude: true
   syncPolicy:
     # Deleting/renaming a folder removes its Application but leaves the
     # workloads running (protects data on local-path PVCs like open-webui)

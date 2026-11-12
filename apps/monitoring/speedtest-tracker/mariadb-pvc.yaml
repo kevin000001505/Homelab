@@ -1,17 +1,20 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: speedtest-db-data
-  namespace: monitoring
-  labels:
-    app: speedtest-db
-    tier: database
-spec:
-  storageClassName: ""
-  volumeName: speedtest-db-pv
-  accessModes:
-    - ReadWriteOnce
-  volumeMode: Filesystem
-  resources:
-    requests:
-      storage: 5Gi
+# DISABLED 2026-11-06: Speedtest Tracker is turned off.
+# Uncomment everything below to bring it back. PV data under hostPath is kept.
+
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: speedtest-db-data
+#   namespace: monitoring
+#   labels:
+#     app: speedtest-db
+#     tier: database
+# spec:
+#   storageClassName: ""
+#   volumeName: speedtest-db-pv
+#   accessModes:
+#     - ReadWriteOnce
+#   volumeMode: Filesystem
+#   resources:
+#     requests:
+#       storage: 5Gi

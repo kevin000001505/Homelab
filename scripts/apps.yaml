@@ -83,12 +83,13 @@
   field_type: combined
   tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
 
-- name: speedtest-tracker
-  image: lscr.io/linuxserver/speedtest-tracker
-  manifest: apps/monitoring/speedtest-tracker/speedtest-deployment.yaml
-  image_path: .spec.template.spec.containers[0].image
-  field_type: combined
-  tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+# Speedtest Tracker disabled (manifests commented out)
+# - name: speedtest-tracker
+#   image: lscr.io/linuxserver/speedtest-tracker
+#   manifest: apps/monitoring/speedtest-tracker/speedtest-deployment.yaml
+#   image_path: .spec.template.spec.containers[0].image
+#   field_type: combined
+#   tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
 
 - name: subsyncarr
   image: mrorbitman/subsyncarr
@@ -125,13 +126,12 @@
   field_type: combined
   tag_pattern: '^v[0-9]+\.[0-9]+\.[0-9]+$'
 
-- name: pocket-id
-  type: helm
-  repository: https://anza-labs.github.io/charts
-  chart: pocket-id
-  manifest: argocd/apps/pocket-id.yaml
-  version_path: .spec.sources[0].targetRevision
-  version_pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+- name: netronome
+  image: ghcr.io/autobrr/netronome
+  manifest: apps/monitoring/netronome/deployment.yaml
+  image_path: .spec.template.spec.containers[0].image
+  field_type: combined
+  tag_pattern: '^v[0-9]+\.[0-9]+\.[0-9]+$'
 
 
 # Add more apps here as you migrate them. To find the right tag_pattern,

@@ -8,6 +8,10 @@ metadata:
     tier: utilities
 spec:
   replicas: 1
+  strategy:
+    # Single replica on a node-local volume, and k3s-worker has no CPU room for
+    # a surge pod: stop the old pod before starting the new one.
+    type: Recreate
   selector:
     matchLabels:
       app: trek
@@ -29,7 +33,7 @@ spec:
             sizeLimit: 64Mi
       containers:
         - name: trek
-          image: mauriceboe/trek:5.1.0
+          image: mauriceboe/trek:5.1.2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
