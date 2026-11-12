@@ -1397,7 +1397,7 @@ grafana:
 
   grafana.ini:
     dashboards:
-      # Homelab · Today (scripts/gen-grafana-dashboards.py), where the sidecar writes it.
+      # The Wall (scripts/gen-grafana-dashboards.py), where the sidecar writes it.
       default_home_dashboard_path: /tmp/dashboards/homelab-wall.json
 
   rbac:
