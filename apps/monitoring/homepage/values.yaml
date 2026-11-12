@@ -1,359 +1,359 @@
-enableRbac: true
+# enableRbac: true
 
-serviceAccount:
-  create: true
-  name: homepage
+# serviceAccount:
+#   create: true
+#   name: homepage
 
-controller:
-  strategy: RollingUpdate
-  rollingUpdate:
-    maxSurge: 25%
-    maxUnavailable: 25%
+# controller:
+#   strategy: RollingUpdate
+#   rollingUpdate:
+#     maxSurge: 25%
+#     maxUnavailable: 25%
 
-initContainers:
-  download-background:
-    image: curlimages/curl:latest
-    command:
-      - sh
-      - -c
-      - |
-        if [ ! -f /images/background.jpg ]; then
-          curl -L -o /images/background.jpg \
-            https://raw.githubusercontent.com/kevin000001505/Homelab/main/docs/images/background.jpg
-        fi
-    volumeMounts:
-      - name: background
-        mountPath: /images
+# initContainers:
+#   download-background:
+#     image: curlimages/curl:latest
+#     command:
+#       - sh
+#       - -c
+#       - |
+#         if [ ! -f /images/background.jpg ]; then
+#           curl -L -o /images/background.jpg \
+#             https://raw.githubusercontent.com/kevin000001505/Homelab/main/docs/images/background.jpg
+#         fi
+#     volumeMounts:
+#       - name: background
+#         mountPath: /images
 
-persistence:
-  background:
-    enabled: true
-    type: emptyDir
-    mountPath: /app/public/images
+# persistence:
+#   background:
+#     enabled: true
+#     type: emptyDir
+#     mountPath: /app/public/images
 
-config:
-  kubernetes:
-    mode: cluster
-  settings:
-    background:
-      image: /images/background.jpg
-      blur: sm
-      opacity: 50
-    layout:
-      System:
-        icon: mdi-desktop-classic-#ffffff
-        tab: Services
+# config:
+#   kubernetes:
+#     mode: cluster
+#   settings:
+#     background:
+#       image: /images/background.jpg
+#       blur: sm
+#       opacity: 50
+#     layout:
+#       System:
+#         icon: mdi-desktop-classic-#ffffff
+#         tab: Services
 
-      Monitoring:
-        icon: mdi-home-analytics-#ffffff
-        tab: Services
-        style: row
-        columns: 4
+#       Monitoring:
+#         icon: mdi-home-analytics-#ffffff
+#         tab: Services
+#         style: row
+#         columns: 4
 
-      Networking:
-        icon: mdi-home-analytics-#ffffff
-        tab: Services
+#       Networking:
+#         icon: mdi-home-analytics-#ffffff
+#         tab: Services
 
-      Media Management:
-        icon: si-vlcmediaplayer-#ffffff
-        tab: Services
+#       Media Management:
+#         icon: si-vlcmediaplayer-#ffffff
+#         tab: Services
 
-      Storage:
-        icon: mdi-harddisk-#ffffff
-        tab: Services
+#       Storage:
+#         icon: mdi-harddisk-#ffffff
+#         tab: Services
 
-      Tools:
-        icon: mdi-application-brackets-outline-#ffffff
-        tab: Services
+#       Tools:
+#         icon: mdi-application-brackets-outline-#ffffff
+#         tab: Services
 
-      Calendar:
-        icon: mdi-calendar-month-outline-#ffffff
-        tab: Services
+#       Calendar:
+#         icon: mdi-calendar-month-outline-#ffffff
+#         tab: Services
 
-      Developer:
-        tab: Bookmarks
-        header: false
+#       Developer:
+#         tab: Bookmarks
+#         header: false
 
-      Social:
-        tab: Bookmarks
-        header: false
+#       Social:
+#         tab: Bookmarks
+#         header: false
 
-      Entertainment:
-        tab: Bookmarks
-        header: false
+#       Entertainment:
+#         tab: Bookmarks
+#         header: false
 
-      Useful Links:
-        tab: Bookmarks
-        header: false
+#       Useful Links:
+#         tab: Bookmarks
+#         header: false
 
-  bookmarks:
-    - Developer:
-        - Github:
-            - icon: https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/github.svg
-              href: https://github.com/
-              description: ""
-        - Cloudflare:
-            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/cloudflare.svg
-              href: https://www.cloudflare.com/
-              description: ""
-        - Proxmox VE Scripts:
-            - icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/proxmox-helper-scripts.svg
-              href: https://community-scripts.org/
-              description: ""
+#   bookmarks:
+#     - Developer:
+#         - Github:
+#             - icon: https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/github.svg
+#               href: https://github.com/
+#               description: ""
+#         - Cloudflare:
+#             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/cloudflare.svg
+#               href: https://www.cloudflare.com/
+#               description: ""
+#         - Proxmox VE Scripts:
+#             - icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/proxmox-helper-scripts.svg
+#               href: https://community-scripts.org/
+#               description: ""
 
-    - Social:
-        - Reddit:
-            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/reddit.svg
-              href: https://www.reddit.com/
-              description: ""
-        - Facebook:
-            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/facebook.svg
-              href: https://www.facebook.com/
-              description: ""
-        - Instagram:
-            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/instagram.svg
-              href: https://www.instagram.com/
-              description: ""
+#     - Social:
+#         - Reddit:
+#             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/reddit.svg
+#               href: https://www.reddit.com/
+#               description: ""
+#         - Facebook:
+#             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/facebook.svg
+#               href: https://www.facebook.com/
+#               description: ""
+#         - Instagram:
+#             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/instagram.svg
+#               href: https://www.instagram.com/
+#               description: ""
 
-    - Useful Links:
-        - Google Map:
-            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/google-map.svg
-              href: https://www.google.com/maps/
-              description: ""
-        - Gemini:
-            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/gemini.svg
-              href: https://gemini.google.com/
-              description: ""
-        - FK Microsoft:
-            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/microsoft-365-admin-center.svg
-              href: https://massgrave.dev/windows_11_links
-              description: ""
+#     - Useful Links:
+#         - Google Map:
+#             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/google-map.svg
+#               href: https://www.google.com/maps/
+#               description: ""
+#         - Gemini:
+#             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/gemini.svg
+#               href: https://gemini.google.com/
+#               description: ""
+#         - FK Microsoft:
+#             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/microsoft-365-admin-center.svg
+#               href: https://massgrave.dev/windows_11_links
+#               description: ""
 
-    - Entertainment:
-        - Youtube:
-            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/youtube.svg
-              href: https://www.youtube.com/
-              description: ""
-        - Amazon:
-            - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/amazon.svg
-              href: https://www.amazon.com/
-              description: ""
+#     - Entertainment:
+#         - Youtube:
+#             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/youtube.svg
+#               href: https://www.youtube.com/
+#               description: ""
+#         - Amazon:
+#             - icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/amazon.svg
+#               href: https://www.amazon.com/
+#               description: ""
 
-  widgets:
-    - kubernetes:
-        cluster:
-          show: true
-          cpu: true
-          memory: true
-          showLabel: true
-          label: "k3s"
-        nodes:
-          show: true
-          cpu: true
-          memory: true
-          showLabel: true
-    - resources:
-        backend: resources
-        expanded: true
-        cpu: true
-        memory: true
-    - search:
-        provider: google
-        target: _blank
-        showSearchSuggestions: true
-    - datetime:
-        text_size: xl
-        format:
-          dateStyle: short
-          timeStyle: short
-          hour12: true
-    - openmeteo:
-        label: Fairfax, VA
-        latitude: 38.847118
-        longitude: -77.306320
-        timezone: America/New_York
-        cache: 5
-        units: metric
+#   widgets:
+#     - kubernetes:
+#         cluster:
+#           show: true
+#           cpu: true
+#           memory: true
+#           showLabel: true
+#           label: "k3s"
+#         nodes:
+#           show: true
+#           cpu: true
+#           memory: true
+#           showLabel: true
+#     - resources:
+#         backend: resources
+#         expanded: true
+#         cpu: true
+#         memory: true
+#     - search:
+#         provider: google
+#         target: _blank
+#         showSearchSuggestions: true
+#     - datetime:
+#         text_size: xl
+#         format:
+#           dateStyle: short
+#           timeStyle: short
+#           hour12: true
+#     - openmeteo:
+#         label: Fairfax, VA
+#         latitude: 38.847118
+#         longitude: -77.306320
+#         timezone: America/New_York
+#         cache: 5
+#         units: metric
 
-  services:
-    - Monitoring:
-        - Grafana:
-            icon: grafana.png
-            href: https://grafana.lan.shiba-toast.com
-        - Argo CD:
-            icon: argo-cd.png
-            href: https://argocd.lan.shiba-toast.com
-        - Traefik:
-            icon: traefik.png
-            href: https://traefik.lan.shiba-toast.com
-        - Uptime Kuma:
-            icon: uptime-kuma.png
-            href: https://uptime.lan.shiba-toast.com
-            widget:
-              type: uptimekuma
-              url: http://uptime-kuma.monitoring.svc.cluster.local
-              slug: homelab
-        - Netronome:
-            icon: https://cdn.jsdelivr.net/gh/selfhst/icons/png/netronome.png
-            href: https://netronome.lan.shiba-toast.com
+#   services:
+#     - Monitoring:
+#         - Grafana:
+#             icon: grafana.png
+#             href: https://grafana.lan.shiba-toast.com
+#         - Argo CD:
+#             icon: argo-cd.png
+#             href: https://argocd.lan.shiba-toast.com
+#         - Traefik:
+#             icon: traefik.png
+#             href: https://traefik.lan.shiba-toast.com
+#         - Uptime Kuma:
+#             icon: uptime-kuma.png
+#             href: https://uptime.lan.shiba-toast.com
+#             widget:
+#               type: uptimekuma
+#               url: http://uptime-kuma.monitoring.svc.cluster.local
+#               slug: homelab
+#         - Netronome:
+#             icon: https://cdn.jsdelivr.net/gh/selfhst/icons/png/netronome.png
+#             href: https://netronome.lan.shiba-toast.com
 
-    - Networking:
-        - Adguard Home:
-            icon: adguard-home.png
-            href: "{{ HOMEPAGE_VAR_ADGUARD_IP }}"
-            # widget:
-            #   type: adguard
-            #   url: "{{ HOMEPAGE_VAR_ADGUARD_IP }}"
-            #   username: "{{ HOMEPAGE_VAR_ADGUARD_USERNAME }}"
-            #   password: "{{ HOMEPAGE_VAR_ADGUARD_PASSWORD }}"
-        # Speedtest Tracker disabled (see apps/monitoring/speedtest-tracker)
-        # - Speedtest Tracker:
-        #     icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/speedtest-tracker.svg
-        #     href: https://speedtest.lan.shiba-toast.com
-        #     widget:
-        #       type: speedtest
-        #       url: http://speedtest-tracker.monitoring.svc.cluster.local
-        #       version: 1
-        #       key: "{{ HOMEPAGE_VAR_SPEEDTEST_API_KEY }}"
-        #       bitratePrecision: 0
+#     - Networking:
+#         - Adguard Home:
+#             icon: adguard-home.png
+#             href: "{{ HOMEPAGE_VAR_ADGUARD_IP }}"
+#             # widget:
+#             #   type: adguard
+#             #   url: "{{ HOMEPAGE_VAR_ADGUARD_IP }}"
+#             #   username: "{{ HOMEPAGE_VAR_ADGUARD_USERNAME }}"
+#             #   password: "{{ HOMEPAGE_VAR_ADGUARD_PASSWORD }}"
+#         # Speedtest Tracker disabled (see apps/monitoring/speedtest-tracker)
+#         # - Speedtest Tracker:
+#         #     icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/speedtest-tracker.svg
+#         #     href: https://speedtest.lan.shiba-toast.com
+#         #     widget:
+#         #       type: speedtest
+#         #       url: http://speedtest-tracker.monitoring.svc.cluster.local
+#         #       version: 1
+#         #       key: "{{ HOMEPAGE_VAR_SPEEDTEST_API_KEY }}"
+#         #       bitratePrecision: 0
 
-    - Storage:
-        - TrueNAS:
-            icon: truenas.png
-            href: "https://truenas.lan.shiba-toast.com"
-            # widget:
-            #   type: truenas
-            #   url: "{{ HOMEPAGE_VAR_TRUENAS_IP }}"
-            #   version: 2
-            #   username: "{{ HOMEPAGE_VAR_TRUENAS_USERNAME }}"
-            #   password: "{{ HOMEPAGE_VAR_TRUENAS_PASSWORD }}"
-            #   # key: "{{ HOMEPAGE_VAR_TRUENAS_API_KEY }}"
-            #   enablePools: true
-            #   nasType: scale
-        - Proxmox Backup Server:
-            icon: proxmox.png
-            href: "{{HOMEPAGE_VAR_PBS_IP}}"
-            # widget:
-            #   type: proxmoxbackupserver
-            #   url: "{{HOMEPAGE_VAR_PBS_IP}}"
-            #   username: "{{HOMEPAGE_VAR_PBS_USERNAME}}"
-            #   password: "{{HOMEPAGE_VAR_PBS_PASSWORD}}"
-            #   # datastore: backup
+#     - Storage:
+#         - TrueNAS:
+#             icon: truenas.png
+#             href: "https://truenas.lan.shiba-toast.com"
+#             # widget:
+#             #   type: truenas
+#             #   url: "{{ HOMEPAGE_VAR_TRUENAS_IP }}"
+#             #   version: 2
+#             #   username: "{{ HOMEPAGE_VAR_TRUENAS_USERNAME }}"
+#             #   password: "{{ HOMEPAGE_VAR_TRUENAS_PASSWORD }}"
+#             #   # key: "{{ HOMEPAGE_VAR_TRUENAS_API_KEY }}"
+#             #   enablePools: true
+#             #   nasType: scale
+#         - Proxmox Backup Server:
+#             icon: proxmox.png
+#             href: "{{HOMEPAGE_VAR_PBS_IP}}"
+#             # widget:
+#             #   type: proxmoxbackupserver
+#             #   url: "{{HOMEPAGE_VAR_PBS_IP}}"
+#             #   username: "{{HOMEPAGE_VAR_PBS_USERNAME}}"
+#             #   password: "{{HOMEPAGE_VAR_PBS_PASSWORD}}"
+#             #   # datastore: backup
 
-    - Tools:
-        - Glance:
-            icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/glance.svg
-            href: https://glance.lan.shiba-toast.com
-        - Bentopdf:
-            icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/bentopdf.svg
-            href: https://bentopdf.lan.shiba-toast.com
-        - OpenWebUI:
-            icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/open-webui.svg
-            href: https://openwebui.lan.shiba-toast.com
-        - Subsyncarr:
-            icon: 🧬
-            href: https://subsyncarr.lan.shiba-toast.com
+#     - Tools:
+#         - Glance:
+#             icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/glance.svg
+#             href: https://glance.lan.shiba-toast.com
+#         - Bentopdf:
+#             icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/bentopdf.svg
+#             href: https://bentopdf.lan.shiba-toast.com
+#         - OpenWebUI:
+#             icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/open-webui.svg
+#             href: https://openwebui.lan.shiba-toast.com
+#         - Subsyncarr:
+#             icon: 🧬
+#             href: https://subsyncarr.lan.shiba-toast.com
 
-    - Calendar:
-        - Calendar:
-            icon: mdi-calendar-month-outline-#ffffff
-            widget:
-              type: calendar
-              firstDayInWeek: monday
-              view: monthly
-              maxEvents: 10
-              showTime: true
-              timezone: America/New_York
-              # integrations:
-              #   - type: sonarr
-              #     service_group: Media Management
-              #     service_name: Sonarr
-              #     color: teal
-              #     baseUrl: https://sonarr.lan.shiba-toast.com
-              #   - type: radarr
-              #     service_group: Media Management
-              #     service_name: Radarr
-              #     color: orange
-              #     baseUrl: https://radarr.lan.shiba-toast.com
-              #   - type: ical
-              #     url: https://domain.url/calendar.ics
-              #     name: My Events
-              #     color: zinc
+#     - Calendar:
+#         - Calendar:
+#             icon: mdi-calendar-month-outline-#ffffff
+#             widget:
+#               type: calendar
+#               firstDayInWeek: monday
+#               view: monthly
+#               maxEvents: 10
+#               showTime: true
+#               timezone: America/New_York
+#               # integrations:
+#               #   - type: sonarr
+#               #     service_group: Media Management
+#               #     service_name: Sonarr
+#               #     color: teal
+#               #     baseUrl: https://sonarr.lan.shiba-toast.com
+#               #   - type: radarr
+#               #     service_group: Media Management
+#               #     service_name: Radarr
+#               #     color: orange
+#               #     baseUrl: https://radarr.lan.shiba-toast.com
+#               #   - type: ical
+#               #     url: https://domain.url/calendar.ics
+#               #     name: My Events
+#               #     color: zinc
 
-ingress:
-  main:
-    enabled: true
-    ingressClassName: traefik
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-      traefik.ingress.kubernetes.io/router.entrypoints: websecure
-      traefik.ingress.kubernetes.io/router.tls: "true"
-    hosts:
-      - host: homepage.lan.shiba-toast.com
-        paths:
-          - path: /
-            pathType: Prefix
-    tls:
-      - secretName: homepage-tls
-        hosts:
-          - homepage.lan.shiba-toast.com
+# ingress:
+#   main:
+#     enabled: true
+#     ingressClassName: traefik
+#     annotations:
+#       cert-manager.io/cluster-issuer: letsencrypt-prod
+#       traefik.ingress.kubernetes.io/router.entrypoints: websecure
+#       traefik.ingress.kubernetes.io/router.tls: "true"
+#     hosts:
+#       - host: homepage.lan.shiba-toast.com
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#     tls:
+#       - secretName: homepage-tls
+#         hosts:
+#           - homepage.lan.shiba-toast.com
 
-env:
-  - name: HOMEPAGE_ALLOWED_HOSTS
-    value: "homepage.lan.shiba-toast.com"
-  # Speedtest Tracker disabled
-  # - name: HOMEPAGE_VAR_SPEEDTEST_API_KEY
-  #   valueFrom:
-  #     secretKeyRef:
-  #       name: homepage-secret
-  #       key: speed-test-api
-  - name: HOMEPAGE_VAR_ADGUARD_IP
-    valueFrom:
-      secretKeyRef:
-        name: homepage-secret
-        key: adguard-ip
-  - name: HOMEPAGE_VAR_ADGUARD_USERNAME
-    valueFrom:
-      secretKeyRef:
-        name: homepage-secret
-        key: adguard-username
-  - name: HOMEPAGE_VAR_ADGUARD_PASSWORD
-    valueFrom:
-      secretKeyRef:
-        name: homepage-secret
-        key: adguard-password
-  - name: HOMEPAGE_VAR_PBS_USERNAME
-    valueFrom:
-      secretKeyRef:
-        name: homepage-secret
-        key: pbs-username
-  - name: HOMEPAGE_VAR_PBS_PASSWORD
-    valueFrom:
-      secretKeyRef:
-        name: homepage-secret
-        key: pbs-password
-  - name: HOMEPAGE_VAR_PBS_IP
-    valueFrom:
-      secretKeyRef:
-        name: homepage-secret
-        key: pbs-ip
-  - name: HOMEPAGE_VAR_TRUENAS_IP
-    valueFrom:
-      secretKeyRef:
-        name: homepage-secret
-        key: truenas-ip
-  - name: HOMEPAGE_VAR_TRUENAS_API_KEY
-    valueFrom:
-      secretKeyRef:
-        name: homepage-secret
-        key: truenas-api-key
-  - name: HOMEPAGE_VAR_TRUENAS_USERNAME
-    valueFrom:
-      secretKeyRef:
-        name: homepage-secret
-        key: truenas-username
-  - name: HOMEPAGE_VAR_TRUENAS_PASSWORD
-    valueFrom:
-      secretKeyRef:
-        name: homepage-secret
-        key: truenas-password
+# env:
+#   - name: HOMEPAGE_ALLOWED_HOSTS
+#     value: "homepage.lan.shiba-toast.com"
+#   # Speedtest Tracker disabled
+#   # - name: HOMEPAGE_VAR_SPEEDTEST_API_KEY
+#   #   valueFrom:
+#   #     secretKeyRef:
+#   #       name: homepage-secret
+#   #       key: speed-test-api
+#   - name: HOMEPAGE_VAR_ADGUARD_IP
+#     valueFrom:
+#       secretKeyRef:
+#         name: homepage-secret
+#         key: adguard-ip
+#   - name: HOMEPAGE_VAR_ADGUARD_USERNAME
+#     valueFrom:
+#       secretKeyRef:
+#         name: homepage-secret
+#         key: adguard-username
+#   - name: HOMEPAGE_VAR_ADGUARD_PASSWORD
+#     valueFrom:
+#       secretKeyRef:
+#         name: homepage-secret
+#         key: adguard-password
+#   - name: HOMEPAGE_VAR_PBS_USERNAME
+#     valueFrom:
+#       secretKeyRef:
+#         name: homepage-secret
+#         key: pbs-username
+#   - name: HOMEPAGE_VAR_PBS_PASSWORD
+#     valueFrom:
+#       secretKeyRef:
+#         name: homepage-secret
+#         key: pbs-password
+#   - name: HOMEPAGE_VAR_PBS_IP
+#     valueFrom:
+#       secretKeyRef:
+#         name: homepage-secret
+#         key: pbs-ip
+#   - name: HOMEPAGE_VAR_TRUENAS_IP
+#     valueFrom:
+#       secretKeyRef:
+#         name: homepage-secret
+#         key: truenas-ip
+#   - name: HOMEPAGE_VAR_TRUENAS_API_KEY
+#     valueFrom:
+#       secretKeyRef:
+#         name: homepage-secret
+#         key: truenas-api-key
+#   - name: HOMEPAGE_VAR_TRUENAS_USERNAME
+#     valueFrom:
+#       secretKeyRef:
+#         name: homepage-secret
+#         key: truenas-username
+#   - name: HOMEPAGE_VAR_TRUENAS_PASSWORD
+#     valueFrom:
+#       secretKeyRef:
+#         name: homepage-secret
+#         key: truenas-password
