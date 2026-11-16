@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskview-api
+  namespace: utilities
+  labels:
+    app: taskview-api
+    tier: utilities
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskview-api
+      tier: utilities
+  # RWO attachments volume: a rolling update would deadlock on the second pod
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        homelab/app: taskview
+        app: taskview-api
+        tier: utilities
+    spec:
+      volumes:
+        - name: files
+          persistentVolumeClaim:
+            claimName: taskview-files-pvc
+        - name: logs
+          emptyDir: {}
+      initContainers:
+        # Equivalent of compose's one-shot "migration" service. Its entrypoint
+        # waits for Postgres, creates the schema on first run and applies new
+        # migrations on every later start, so bumping the image tags upgrades
+        # the database before the API comes up. Keep its tag equal to the API's.
+        - name: migration
+          image: gimanhead/taskview-ce-db-migration:1.58.3
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_HOST
+              value: taskview-db
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: taskview-secrets
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: taskview-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: taskview-secrets
+                  key: DB_PASSWORD
+      containers:
+        - name: taskview-api
+          image: gimanhead/taskview-ce-api-server:1.58.3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 1401
+              protocol: TCP
+          # Variables: https://taskview.tech/docs/configuration/environment-variables
+          envFrom:
+            # JWT_SIGN, ENCRYPTION_KEY
+            - secretRef:
+                name: taskview-secrets
+          env:
+            - name: DB_HOST
+              value: taskview-db
+            - name: DB_PORT
+              value: "5432"
+            - name: APP_PORT
+              value: "1401"
+            # One worker is plenty for a household; each worker holds its own
+            # pool of up to DB_POOL_MAX Postgres connections.
+            - name: PM2_INSTANCES
+              value: "1"
+            - name: DB_POOL_MAX
+              value: "20"
+            # Web app, API and MCP share one hostname (see ingress.yaml)
+            - name: APP_URL
+              value: "https://taskview.lan.shiba-toast.com"
+            - name: API_PUBLIC_URL
+              value: "https://taskview.lan.shiba-toast.com"
+            - name: CORS_ALLOWED_ORIGINS
+              value: "https://taskview.lan.shiba-toast.com"
+            # Behind Traefik (one proxy hop)
+            - name: TRUST_PROXY
+              value: "1"
+            - name: JWT_ALG
+              value: "HS256"
+            - name: ACCESS_LIFE_TIME
+              value: "3d"
+            - name: REFRESH_LIFE_TIME
+              value: "9d"
+            # No SMTP here: password-only login, and password changes are
+            # confirmed with the current password instead of an emailed code.
+            - name: AUTH_LOGIN_METHODS
+              value: "password"
+            - name: PASSWORD_CHANGE_CONFIRMATION
+              value: "password"
+            - name: ALLOW_PUBLIC_REGISTRATION
+              value: "false"
+            # Task attachments
+            - name: FILE_STORAGE_PROVIDER
+              value: "local"
+            - name: FILE_STORAGE_LOCAL_DIR
+              value: "/usr/src/app/data/files"
+          volumeMounts:
+            - name: files
+              mountPath: /usr/src/app/data/files
+            - name: logs
+              mountPath: /usr/src/app/logs
+          readinessProbe:
+            tcpSocket:
+              port: 1401
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 1401
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskview-api
+  namespace: utilities
+spec:
+  selector:
+    app: taskview-api
+  ports:
+    - port: 1401
+      targetPort: 1401

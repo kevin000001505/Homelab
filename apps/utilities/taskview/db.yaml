@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskview-db
+  namespace: utilities
+  labels:
+    app: taskview-db
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskview-db
+      tier: database
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        homelab/app: taskview
+        app: taskview-db
+        tier: database
+    spec:
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: taskview-db-pvc
+      containers:
+        - name: taskview-db
+          image: postgres:17-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: taskview-secrets
+                  key: DB_NAME
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: taskview-secrets
+                  key: DB_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: taskview-secrets
+                  key: DB_PASSWORD
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskview-db
+  namespace: utilities
+spec:
+  selector:
+    app: taskview-db
+  ports:
+    - port: 5432
+      targetPort: 5432

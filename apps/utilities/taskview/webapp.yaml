@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskview
+  namespace: utilities
+  labels:
+    app: taskview
+    tier: utilities
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskview
+      tier: utilities
+  template:
+    metadata:
+      labels:
+        homelab/app: taskview
+        app: taskview
+        tier: utilities
+    spec:
+      containers:
+        - name: taskview
+          image: gimanhead/taskview-ce-webapp:1.58.3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          env:
+            # Pins the API server and hides the server picker on the login
+            # page. Same hostname as the web app: the ingress sends /module,
+            # /scim and /.well-known to the API.
+            - name: TASKVIEW_API_URL
+              value: "https://taskview.lan.shiba-toast.com"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskview
+  namespace: utilities
+spec:
+  selector:
+    app: taskview
+  ports:
+    - port: 80
+      targetPort: 80
