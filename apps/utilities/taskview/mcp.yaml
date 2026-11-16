@@ -1,0 +1,84 @@
+# TaskView's AI feature. TaskView has no built-in LLM: it exposes its projects
+# and tasks as MCP tools, and an AI client drives them. Here that client is
+# Open WebUI (apps/utilities/open-webui), which already talks to the local
+# llama-swap endpoint http://192.168.1.163:8080/v1.
+#
+# One-time setup in the UIs (the token only exists after first login):
+#   1. TaskView  → Account settings → API tokens → create a tvk_... token
+#   2. Open WebUI → Admin Panel → Settings → External Tools → add connection
+#        Type: MCP (Streamable HTTP)
+#        URL:  http://taskview-mcp.utilities.svc.cluster.local:3100/mcp
+#        Auth: Bearer <tvk_ token>
+#   3. In a chat, pick model Qwen3.8-Flash-Next-IQ3_XXS-Strata, enable the
+#      TaskView tool, and set Function Calling to "Native" (chat controls →
+#      Advanced Params) so the model emits real tool calls.
+#
+# The server is stateless and stores nothing: every request is forwarded to the
+# API with the bearer token it arrived with, and requests without one get 401.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskview-mcp
+  namespace: utilities
+  labels:
+    app: taskview-mcp
+    tier: utilities
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskview-mcp
+      tier: utilities
+  template:
+    metadata:
+      labels:
+        homelab/app: taskview
+        app: taskview-mcp
+        tier: utilities
+    spec:
+      containers:
+        - name: taskview-mcp
+          image: gimanhead/taskview-ce-mcp:1.58.3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3100
+              protocol: TCP
+          env:
+            - name: MCP_HTTP_PORT
+              value: "3100"
+            # In-cluster API address
+            - name: TASKVIEW_URL
+              value: "http://taskview-api:1401"
+            # Makes get/create/update_task return a clickable link to the task
+            - name: TASKVIEW_APP_URL
+              value: "https://taskview.lan.shiba-toast.com"
+            - name: MCP_PUBLIC_URL
+              value: "https://taskview.lan.shiba-toast.com/mcp"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3100
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3100
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskview-mcp
+  namespace: utilities
+spec:
+  selector:
+    app: taskview-mcp
+  ports:
+    - port: 3100
+      targetPort: 3100
