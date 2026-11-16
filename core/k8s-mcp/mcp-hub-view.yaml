@@ -1,0 +1,38 @@
+# The Kubernetes MCP server's identity. Applied by hand on the cluster, as the
+# Homelab repository's core/ objects are — see docs/runbooks/k8s-mcp.md.
+#
+# `view` is a built-in ClusterRole. It cannot write, and it has no rule for
+# secrets at all: `kubectl get clusterrole view -o json` lists no rule whose
+# resources include `secrets` (checked on this cluster, 2026-11-16). That is
+# the boundary the Hub relies on. The MCP server's own denied_resources block
+# is a second layer in front of it, not a substitute.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-hub-view
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mcp-hub-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: mcp-hub-view
+    namespace: kube-system
+---
+# Kubernetes stopped minting long-lived ServiceAccount tokens automatically in
+# 1.24, so the token is requested explicitly. The Hub needs one that outlives a
+# pod, because the MCP server runs on the monitor Guest and not in the cluster.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mcp-hub-view-token
+  namespace: kube-system
+  annotations:
+    kubernetes.io/service-account.name: mcp-hub-view
+type: kubernetes.io/service-account-token
