@@ -1,0 +1,89 @@
+# Headless-browser scraper the API calls for JS-rendered pages.
+# Upstream publishes this image only as :latest / :sha-*, so it is pinned by
+# digest (":latest" as of 2026-11-17). Bump it together with the API tag.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firecrawl-playwright
+  namespace: utilities
+  labels:
+    app: firecrawl-playwright
+    tier: utilities
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: firecrawl-playwright
+      tier: utilities
+  template:
+    metadata:
+      labels:
+        homelab/app: firecrawl
+        app: firecrawl-playwright
+        tier: utilities
+    spec:
+      enableServiceLinks: false
+      # Same hardening as compose (no-new-privileges, cap_drop ALL) and the
+      # upstream Kubernetes example (non-root uid 1000).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: cache
+          emptyDir:
+            sizeLimit: 1Gi
+      containers:
+        - name: firecrawl-playwright
+          image: ghcr.io/firecrawl/playwright-service@sha256:227ce3d8059173925a5a0697c63a1e947662cca934a609151651f578774edd5d
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "3000"
+            - name: ALLOW_LOCAL_WEBHOOKS
+              value: "false"
+            # Keep equal to CRAWL_CONCURRENT_REQUESTS in api.yaml
+            - name: MAX_CONCURRENT_PAGES
+              value: "5"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: cache
+              mountPath: /tmp/.cache
+          readinessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: firecrawl-playwright
+  namespace: utilities
+spec:
+  selector:
+    app: firecrawl-playwright
+  ports:
+    - port: 3000
+      targetPort: 3000

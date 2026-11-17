@@ -1,0 +1,124 @@
+# Firecrawl API. Follows the self-host docker-compose
+# (https://docs.firecrawl.dev/contributing/self-host, release v2.11.162):
+# one container runs `harness.js --start-docker`, which spawns the API, the
+# queue/extract workers, the NuQ workers, the prefetch worker and the
+# reconciler as child processes. Because POSTGRES_HOST is not "localhost",
+# the harness takes its "docker-compose" path and only connects to the
+# Postgres, Redis and RabbitMQ services in this folder.
+#
+# No API auth (USE_DB_AUTHENTICATION=false): any client that reaches
+# https://firecrawl.lan.shiba-toast.com can use it. Keep it LAN/tailnet-only.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firecrawl-api
+  namespace: utilities
+  labels:
+    app: firecrawl-api
+    tier: utilities
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: firecrawl-api
+      tier: utilities
+  template:
+    metadata:
+      labels:
+        homelab/app: firecrawl
+        app: firecrawl-api
+        tier: utilities
+    spec:
+      # Service-link env vars (FIRECRAWL_REDIS_PORT=tcp://...) would leak into
+      # Firecrawl's env-driven config; nothing here needs them.
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: firecrawl-api
+          # Keep this tag on the release the docs pin.
+          image: ghcr.io/firecrawl/firecrawl:2.11.162
+          imagePullPolicy: IfNotPresent
+          command: ["node", "dist/src/harness.js", "--start-docker"]
+          ports:
+            - containerPort: 3002
+              protocol: TCP
+          envFrom:
+            # POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+            - secretRef:
+                name: firecrawl-secrets
+          env:
+            - name: ENV
+              value: "local"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "3002"
+            - name: EXTRACT_WORKER_PORT
+              value: "3004"
+            - name: WORKER_PORT
+              value: "3005"
+            - name: HARNESS_STARTUP_TIMEOUT_MS
+              value: "120000"
+            - name: USE_DB_AUTHENTICATION
+              value: "false"
+            - name: REDIS_URL
+              value: "redis://firecrawl-redis:6379"
+            - name: REDIS_RATE_LIMIT_URL
+              value: "redis://firecrawl-redis:6379"
+            - name: PLAYWRIGHT_MICROSERVICE_URL
+              value: "http://firecrawl-playwright:3000/scrape"
+            - name: POSTGRES_HOST
+              value: "firecrawl-nuq-postgres"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: NUQ_RABBITMQ_URL
+              value: "amqp://firecrawl-rabbitmq:5672"
+            # Sized down from the compose defaults (8 / 10 / 5 / 5 and five
+            # NuQ workers in an 8G container) to fit k3s-worker.
+            - name: NUQ_WORKER_COUNT
+              value: "2"
+            - name: NUM_WORKERS_PER_QUEUE
+              value: "4"
+            - name: CRAWL_CONCURRENT_REQUESTS
+              value: "5"
+            - name: MAX_CONCURRENT_JOBS
+              value: "3"
+            - name: BROWSER_POOL_SIZE
+              value: "3"
+            - name: LOGGING_LEVEL
+              value: "INFO"
+            # Optional extras (all unset in the docs' minimal setup):
+            #   OPENAI_BASE_URL / OPENAI_API_KEY / MODEL_NAME  → /extract and JSON format
+            #   SEARXNG_ENDPOINT                               → /search
+            #   PROXY_SERVER / PROXY_USERNAME / PROXY_PASSWORD
+          readinessProbe:
+            tcpSocket:
+              port: 3002
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 3002
+            # The harness waits for Postgres/RabbitMQ before the API listens
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              memory: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: firecrawl-api
+  namespace: utilities
+spec:
+  selector:
+    app: firecrawl-api
+  ports:
+    - port: 3002
+      targetPort: 3002
