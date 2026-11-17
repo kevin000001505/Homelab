@@ -1,198 +1,202 @@
-# Backing services for the Firecrawl API: Redis (cache + rate limits),
-# RabbitMQ (NuQ job notifications) and nuq-postgres (the job queue).
-# Like the upstream compose file and Kubernetes example, none of them keep
-# data across restarts (emptyDir): they hold in-flight jobs only, and
-# nuq-postgres re-creates its schema from the image's init script on start.
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: firecrawl-redis
-  namespace: utilities
-  labels:
-    app: firecrawl-redis
-    tier: database
-spec:
-  # Scaled to 0 on 2026-11-17: k3s-worker (3 vCPU / 10.5 GB) ran out of CPU and
-  # memory with Firecrawl running. Set back to 1 once there is capacity.
-  replicas: 0
-  selector:
-    matchLabels:
-      app: firecrawl-redis
-      tier: database
-  # Never run two copies at once; the node can't hold both
-  strategy:
-    type: Recreate
-  template:
-    metadata:
-      labels:
-        homelab/app: firecrawl
-        app: firecrawl-redis
-        tier: database
-    spec:
-      enableServiceLinks: false
-      containers:
-        - name: firecrawl-redis
-          image: redis:8-alpine
-          imagePullPolicy: IfNotPresent
-          command: ["redis-server", "--bind", "0.0.0.0", "--save", "", "--appendonly", "no"]
-          ports:
-            - containerPort: 6379
-              protocol: TCP
-          readinessProbe:
-            exec:
-              command: ["redis-cli", "ping"]
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          resources:
-            requests:
-              cpu: 25m
-              memory: 64Mi
-            limits:
-              memory: 512Mi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: firecrawl-redis
-  namespace: utilities
-spec:
-  selector:
-    app: firecrawl-redis
-  ports:
-    - port: 6379
-      targetPort: 6379
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: firecrawl-rabbitmq
-  namespace: utilities
-  labels:
-    app: firecrawl-rabbitmq
-    tier: database
-spec:
-  # Scaled to 0 on 2026-11-17: k3s-worker (3 vCPU / 10.5 GB) ran out of CPU and
-  # memory with Firecrawl running. Set back to 1 once there is capacity.
-  replicas: 0
-  selector:
-    matchLabels:
-      app: firecrawl-rabbitmq
-      tier: database
-  # Never run two copies at once; the node can't hold both
-  strategy:
-    type: Recreate
-  template:
-    metadata:
-      labels:
-        homelab/app: firecrawl
-        app: firecrawl-rabbitmq
-        tier: database
-    spec:
-      enableServiceLinks: false
-      containers:
-        - name: firecrawl-rabbitmq
-          # Compose uses rabbitmq:3-management; the management UI is not exposed
-          image: rabbitmq:3.13-management
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 5672
-              protocol: TCP
-          readinessProbe:
-            exec:
-              command: ["rabbitmq-diagnostics", "-q", "check_running"]
-            initialDelaySeconds: 15
-            periodSeconds: 10
-            timeoutSeconds: 10
-          livenessProbe:
-            exec:
-              command: ["rabbitmq-diagnostics", "-q", "ping"]
-            initialDelaySeconds: 60
-            periodSeconds: 30
-            timeoutSeconds: 10
-          resources:
-            requests:
-              cpu: 25m
-              memory: 192Mi
-            limits:
-              memory: 512Mi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: firecrawl-rabbitmq
-  namespace: utilities
-spec:
-  selector:
-    app: firecrawl-rabbitmq
-  ports:
-    - port: 5672
-      targetPort: 5672
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: firecrawl-nuq-postgres
-  namespace: utilities
-  labels:
-    app: firecrawl-nuq-postgres
-    tier: database
-spec:
-  # Scaled to 0 on 2026-11-17: k3s-worker (3 vCPU / 10.5 GB) ran out of CPU and
-  # memory with Firecrawl running. Set back to 1 once there is capacity.
-  replicas: 0
-  selector:
-    matchLabels:
-      app: firecrawl-nuq-postgres
-      tier: database
-  strategy:
-    type: Recreate
-  template:
-    metadata:
-      labels:
-        homelab/app: firecrawl
-        app: firecrawl-nuq-postgres
-        tier: database
-    spec:
-      enableServiceLinks: false
-      volumes:
-        - name: db-data
-          emptyDir: {}
-      containers:
-        - name: firecrawl-nuq-postgres
-          # Postgres 17 + pg_cron + nuq.sql. Upstream publishes only :latest /
-          # :sha-*, so pinned by digest (":latest" as of 2026-11-17).
-          image: ghcr.io/firecrawl/nuq-postgres@sha256:d719b36160eac2fcbe16dc7e7360ddb9c82c40ea5da183d07bf4a755c6a0b2ae
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 5432
-              protocol: TCP
-          envFrom:
-            # POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
-            - secretRef:
-                name: firecrawl-secrets
-          volumeMounts:
-            - name: db-data
-              mountPath: /var/lib/postgresql/data
-          readinessProbe:
-            exec:
-              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          resources:
-            requests:
-              cpu: 25m
-              memory: 256Mi
-            limits:
-              memory: 1Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: firecrawl-nuq-postgres
-  namespace: utilities
-spec:
-  selector:
-    app: firecrawl-nuq-postgres
-  ports:
-    - port: 5432
-      targetPort: 5432
+# DISABLED 2026-11-17: Firecrawl is turned off. k3s-worker (3 vCPU / 10.5 GB)
+# ran out of memory with it running (~2.9 GB) and went NotReady.
+# Uncomment everything below to bring it back.
+
+# # Backing services for the Firecrawl API: Redis (cache + rate limits),
+# # RabbitMQ (NuQ job notifications) and nuq-postgres (the job queue).
+# # Like the upstream compose file and Kubernetes example, none of them keep
+# # data across restarts (emptyDir): they hold in-flight jobs only, and
+# # nuq-postgres re-creates its schema from the image's init script on start.
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: firecrawl-redis
+#   namespace: utilities
+#   labels:
+#     app: firecrawl-redis
+#     tier: database
+# spec:
+#   # Scaled to 0 on 2026-11-17: k3s-worker (3 vCPU / 10.5 GB) ran out of CPU and
+#   # memory with Firecrawl running. Set back to 1 once there is capacity.
+#   replicas: 0
+#   selector:
+#     matchLabels:
+#       app: firecrawl-redis
+#       tier: database
+#   # Never run two copies at once; the node can't hold both
+#   strategy:
+#     type: Recreate
+#   template:
+#     metadata:
+#       labels:
+#         homelab/app: firecrawl
+#         app: firecrawl-redis
+#         tier: database
+#     spec:
+#       enableServiceLinks: false
+#       containers:
+#         - name: firecrawl-redis
+#           image: redis:8-alpine
+#           imagePullPolicy: IfNotPresent
+#           command: ["redis-server", "--bind", "0.0.0.0", "--save", "", "--appendonly", "no"]
+#           ports:
+#             - containerPort: 6379
+#               protocol: TCP
+#           readinessProbe:
+#             exec:
+#               command: ["redis-cli", "ping"]
+#             initialDelaySeconds: 5
+#             periodSeconds: 10
+#           resources:
+#             requests:
+#               cpu: 25m
+#               memory: 64Mi
+#             limits:
+#               memory: 512Mi
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: firecrawl-redis
+#   namespace: utilities
+# spec:
+#   selector:
+#     app: firecrawl-redis
+#   ports:
+#     - port: 6379
+#       targetPort: 6379
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: firecrawl-rabbitmq
+#   namespace: utilities
+#   labels:
+#     app: firecrawl-rabbitmq
+#     tier: database
+# spec:
+#   # Scaled to 0 on 2026-11-17: k3s-worker (3 vCPU / 10.5 GB) ran out of CPU and
+#   # memory with Firecrawl running. Set back to 1 once there is capacity.
+#   replicas: 0
+#   selector:
+#     matchLabels:
+#       app: firecrawl-rabbitmq
+#       tier: database
+#   # Never run two copies at once; the node can't hold both
+#   strategy:
+#     type: Recreate
+#   template:
+#     metadata:
+#       labels:
+#         homelab/app: firecrawl
+#         app: firecrawl-rabbitmq
+#         tier: database
+#     spec:
+#       enableServiceLinks: false
+#       containers:
+#         - name: firecrawl-rabbitmq
+#           # Compose uses rabbitmq:3-management; the management UI is not exposed
+#           image: rabbitmq:3.13-management
+#           imagePullPolicy: IfNotPresent
+#           ports:
+#             - containerPort: 5672
+#               protocol: TCP
+#           readinessProbe:
+#             exec:
+#               command: ["rabbitmq-diagnostics", "-q", "check_running"]
+#             initialDelaySeconds: 15
+#             periodSeconds: 10
+#             timeoutSeconds: 10
+#           livenessProbe:
+#             exec:
+#               command: ["rabbitmq-diagnostics", "-q", "ping"]
+#             initialDelaySeconds: 60
+#             periodSeconds: 30
+#             timeoutSeconds: 10
+#           resources:
+#             requests:
+#               cpu: 25m
+#               memory: 192Mi
+#             limits:
+#               memory: 512Mi
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: firecrawl-rabbitmq
+#   namespace: utilities
+# spec:
+#   selector:
+#     app: firecrawl-rabbitmq
+#   ports:
+#     - port: 5672
+#       targetPort: 5672
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: firecrawl-nuq-postgres
+#   namespace: utilities
+#   labels:
+#     app: firecrawl-nuq-postgres
+#     tier: database
+# spec:
+#   # Scaled to 0 on 2026-11-17: k3s-worker (3 vCPU / 10.5 GB) ran out of CPU and
+#   # memory with Firecrawl running. Set back to 1 once there is capacity.
+#   replicas: 0
+#   selector:
+#     matchLabels:
+#       app: firecrawl-nuq-postgres
+#       tier: database
+#   strategy:
+#     type: Recreate
+#   template:
+#     metadata:
+#       labels:
+#         homelab/app: firecrawl
+#         app: firecrawl-nuq-postgres
+#         tier: database
+#     spec:
+#       enableServiceLinks: false
+#       volumes:
+#         - name: db-data
+#           emptyDir: {}
+#       containers:
+#         - name: firecrawl-nuq-postgres
+#           # Postgres 17 + pg_cron + nuq.sql. Upstream publishes only :latest /
+#           # :sha-*, so pinned by digest (":latest" as of 2026-11-17).
+#           image: ghcr.io/firecrawl/nuq-postgres@sha256:d719b36160eac2fcbe16dc7e7360ddb9c82c40ea5da183d07bf4a755c6a0b2ae
+#           imagePullPolicy: IfNotPresent
+#           ports:
+#             - containerPort: 5432
+#               protocol: TCP
+#           envFrom:
+#             # POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+#             - secretRef:
+#                 name: firecrawl-secrets
+#           volumeMounts:
+#             - name: db-data
+#               mountPath: /var/lib/postgresql/data
+#           readinessProbe:
+#             exec:
+#               command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+#             initialDelaySeconds: 5
+#             periodSeconds: 10
+#           resources:
+#             requests:
+#               cpu: 25m
+#               memory: 256Mi
+#             limits:
+#               memory: 1Gi
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: firecrawl-nuq-postgres
+#   namespace: utilities
+# spec:
+#   selector:
+#     app: firecrawl-nuq-postgres
+#   ports:
+#     - port: 5432
+#       targetPort: 5432

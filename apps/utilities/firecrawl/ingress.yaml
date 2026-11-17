@@ -1,27 +1,31 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: firecrawl
-  namespace: utilities
-  labels:
-    app: firecrawl
-    tier: utilities
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-spec:
-  rules:
-    - host: firecrawl.lan.shiba-toast.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: firecrawl-api
-                port:
-                  number: 3002
-  tls:
-    - hosts:
-        - firecrawl.lan.shiba-toast.com
-      secretName: firecrawl-tls
+# DISABLED 2026-11-17: Firecrawl is turned off. k3s-worker (3 vCPU / 10.5 GB)
+# ran out of memory with it running (~2.9 GB) and went NotReady.
+# Uncomment everything below to bring it back.
+
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: firecrawl
+#   namespace: utilities
+#   labels:
+#     app: firecrawl
+#     tier: utilities
+#   annotations:
+#     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+#     cert-manager.io/cluster-issuer: letsencrypt-prod
+# spec:
+#   rules:
+#     - host: firecrawl.lan.shiba-toast.com
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: firecrawl-api
+#                 port:
+#                   number: 3002
+#   tls:
+#     - hosts:
+#         - firecrawl.lan.shiba-toast.com
+#       secretName: firecrawl-tls
