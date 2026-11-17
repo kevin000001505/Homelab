@@ -35,7 +35,9 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: firecrawl-api
-          # Keep this tag on the release the docs pin.
+          # Bumped weekly by scripts/apps.yaml (check-image-updates workflow).
+          # Firecrawl tags every main-branch build, so expect a PR each week;
+          # bump the playwright/nuq-postgres digests by hand if a release needs it.
           image: ghcr.io/firecrawl/firecrawl:2.11.162
           imagePullPolicy: IfNotPresent
           command: ["node", "dist/src/harness.js", "--start-docker"]
@@ -106,7 +108,7 @@ spec:
             failureThreshold: 3
           resources:
             requests:
-              cpu: 250m
+              cpu: 100m
               memory: 1Gi
             limits:
               memory: 4Gi
