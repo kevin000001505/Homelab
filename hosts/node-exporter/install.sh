@@ -12,7 +12,7 @@
 #     scp hosts/node-exporter/install.sh Arr:/tmp/install-node-exporter.sh
 #     ssh -t Arr 'sudo bash /tmp/install-node-exporter.sh'
 #
-# The scrape targets are in apps/monitoring/prometheus/scrapeconfigs-proxmox.yaml.
+# The scrape targets are in prometheus/prometheus.yml in the Monitor repo (kevin000001505/Monitor).
 # Safe to re-run.
 set -euo pipefail
 

@@ -41,7 +41,7 @@ Three patterns are used deliberately:
 
 **ApplicationSet** (`utilities`) uses a git directory generator: every folder under `apps/utilities/` becomes its own Application in the `utilities` namespace, so adding a service is just adding a folder. `preserveResourcesOnDeletion: true` keeps workloads (and their local-path PVCs) running if a folder is renamed or removed.
 
-**Multi-source Helm applications** (`prometheus`, `loki`, `promtail`, `homepage`, `ghost`) pull the chart from its upstream repo and the values file from *this* repo via the `$values` ref:
+**Multi-source Helm applications** (`prometheus`, `promtail`, `homepage`, `ghost`) pull the chart from its upstream repo and the values file from *this* repo via the `$values` ref:
 
 ```yaml
 sources:
@@ -104,16 +104,22 @@ Traffic is filtered in layers, applied globally at the Traefik entrypoint and th
 
 ## Observability
 
+Storage, queries and dashboards run **outside** the cluster, on the Monitor LXC
+(`192.168.1.184`), deployed by Komodo from [kevin000001505/Monitor](https://github.com/kevin000001505/Monitor).
+The cluster only collects and ships, so a broken cluster can still be looked at.
+
 ```
-pods ──▶ Promtail (DaemonSet) ──▶ Loki ──▶ Grafana
-nodes ─▶ kube-prometheus-stack (Prometheus + Alertmanager + Grafana)
-Traefik ─▶ /metrics :8082 ──▶ Prometheus
+ in k3s                                                  Monitor LXC
+pods ──▶ Promtail (DaemonSet) ───────── push :3100 ───▶ Loki ───────┐
+nodes ─▶ kube-prometheus-stack, agent mode ── remote write :9090 ─▶ Prometheus ─▶ Grafana
+Traefik ─▶ /metrics :8082 ──▶ (agent)                    ▲
+                     Proxmox, guests, AI GPUs, CrowdSec, blackbox ┘ (scraped there)
 ```
 
-- **Loki** runs in `SingleBinary` mode on the filesystem backend with `replication_factor: 1`. A read/write/backend split would be the correct production topology; at one node it is pure overhead, so the scaled components are explicitly set to `replicas: 0`.
+- **kube-prometheus-stack** runs only the Prometheus agent, kube-state-metrics, node-exporter and the operator. No Grafana, no Alertmanager, no rules: recording and alert rules are evaluated on the Monitor LXC.
 - **Promtail** has a dedicated scrape job for Traefik that parses its JSON access log and promotes `status_code` and `method` to labels — which is what makes "show me every 5xx by route in the last hour" a fast query instead of a full-text scan.
 - **Traefik** exports Prometheus metrics on a separate `metrics` entrypoint (`:8082`) with entrypoint and service labels enabled.
-- **Uptime Kuma** provides black-box checks as a deliberately independent signal — if the monitoring stack itself is down, the in-cluster metrics can't tell me.
+- **Uptime Kuma** provides black-box checks as a deliberately independent signal — if the monitoring stack itself is down, it still reports.
 
 ---
 
@@ -149,7 +155,7 @@ Pinning versions only works if something bumps them. A weekly GitHub Actions job
 
 | Namespace | Services |
 |---|---|
-| `monitoring` | kube-prometheus-stack, Loki, Promtail, Blackbox Exporter, Grafana dashboards, Uptime Kuma, Speedtest Tracker (+MariaDB), Homepage, Tracearr |
+| `monitoring` | kube-prometheus-stack (agent mode), Promtail, Uptime Kuma, Speedtest Tracker (+MariaDB), Homepage, Tracearr |
 | `utilities` | Ghost (blog), Dawarich (location history — app/db/redis/sidekiq/photon), Actual Budget (+ actual-ai, one instance per user), AirTrail, Open WebUI, Glance, BentoPDF, Trek |
 | `arr-stacks` | Subsyncarr |
 | `argocd` | ArgoCD |
@@ -165,7 +171,7 @@ Documented deliberately — these are the next items of work, not oversights I h
 - **No `NetworkPolicy`.** Pod-to-pod traffic is unrestricted across namespaces; a compromise in one workload has lateral reach.
 - **Missing resource limits** on `dawarich/db`, `dawarich/redis`, and `glance` — an unbounded Postgres or Redis can evict neighbours on a single-worker cluster.
 - **Traefik API is served with `--api.insecure=true`**, exposing the dashboard on the internal entrypoint without auth. The `IngressRoute` should point at an authenticated router instead.
-- **Loki has `auth_enabled: false`** — acceptable single-tenant, but it means any in-cluster pod can read all logs.
+- **Loki and Prometheus on the Monitor LXC have no auth** (`:3100`, `:9090`) — acceptable single-tenant, but anything on the LAN can read all logs and metrics or push to them.
 - **`core/` is not reconciled.** Traefik config, middlewares, the ClusterIssuer and the CoreDNS override are applied with `kubectl apply`, so drift there goes unnoticed. An ArgoCD Application for `core/` would close this.
 - **Single k3s server on SQLite.** No HA datastore; control-plane loss means a restore from the server's data dir, not a failover.
 - **Node clocks follow the Proxmox host at boot.** On 2026-10-29 a host booted with its clock ~8h fast; k3s re-issued its leaf certs with a future `notBefore`, and once the clock was corrected the server refused its own certs and the whole cluster went dark. The fix was `k3s certificate rotate`. Each VM needs an NTP client (`k3s-worker` had none at the time), but the host's RTC is the root cause.
@@ -182,12 +188,12 @@ Documented deliberately — these are the next items of work, not oversights I h
 │   ├── metallb/                      # L2 address pool (MetalLB not installed; ServiceLB is used)
 │   ├── coredns/                      # upstream forward to AdGuard
 │   ├── argocd/                       # ArgoCD UI ingress
-│   ├── prometheus/                   # kube-prometheus-stack values (read by ArgoCD via $values)
+│   ├── prometheus/                   # kube-prometheus-stack values, agent mode (read by ArgoCD via $values)
 │   └── namespaces/
 ├── apps/                             # workloads, grouped by namespace
 ├── argocd/apps/                      # ArgoCD Application definitions
 ├── hosts/                            # config for hosts outside the cluster (e.g. NPMPlus log/metric shipping)
-├── scripts/                          # image-update checker + Grafana dashboard generator
+├── scripts/                          # image-update checker
 ├── docs/images/                      # README assets
 └── .github/workflows/                # weekly image-update PRs
 ```
