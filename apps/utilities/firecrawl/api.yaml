@@ -17,11 +17,16 @@ metadata:
     app: firecrawl-api
     tier: utilities
 spec:
-  replicas: 1
+  # Scaled to 0 on 2026-11-17: k3s-worker (3 vCPU / 10.5 GB) ran out of CPU and
+  # memory with Firecrawl running. Set back to 1 once there is capacity.
+  replicas: 0
   selector:
     matchLabels:
       app: firecrawl-api
       tier: utilities
+  # Never run two copies at once; the node can't hold both
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
