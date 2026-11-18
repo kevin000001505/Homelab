@@ -170,7 +170,8 @@ customRules: {}
 ## Create default rules for monitoring the cluster
 ##
 defaultRules:
-  create: true
+  # Rules run on the Monitor LXC (kevin000001505/Monitor, prometheus/rules/); the agent evaluates none.
+  create: false
   rules:
     alertmanager: true
     etcd: true
@@ -396,7 +397,8 @@ prometheus-windows-exporter:
 alertmanager:
   ## Deploy alertmanager
   ##
-  enabled: true
+  # Off since 2026-11-17: it routed every alert to "null". Alert rules still run on the Monitor LXC.
+  enabled: false
 
   # Optional: Override the namespace where Alertmanager will be deployed.
   namespaceOverride: ""
@@ -1294,7 +1296,8 @@ alertmanager:
 ## Using default values from https://github.com/grafana-community/helm-charts/blob/main/charts/grafana/values.yaml
 ##
 grafana:
-  enabled: true
+  # Grafana moved to the Monitor LXC (kevin000001505/Monitor) on 2026-11-17.
+  enabled: false
   namespaceOverride: ""
 
   ## ForceDeployDatasources Create datasource configmap even if grafana deployment has been disabled
@@ -2600,7 +2603,7 @@ kube-state-metrics:
   releaseLabel: true
 
   ## Pod labels exported as kube_pod_labels: the homelab:pod_app:info rule
-  ## (apps/monitoring/prometheus/rules-homelab.yaml) turns them into each pod's App.
+  ## (prometheus/rules/homelab.yml in the Monitor repo) turns them into each pod's App.
   metricLabelsAllowlist:
     - pods=[homelab/app,app.kubernetes.io/name,k8s-app,app]
 
@@ -3528,7 +3531,9 @@ prometheus:
   ## Note many of features described below (e.g. rules, query, alerting, remote read, thanos) will not work in agent mode.
   ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/platform/prometheus-agent.md
   ##
-  agentMode: false
+  # The agent scrapes the cluster (ServiceMonitors) and remote-writes everything to the
+  # Prometheus on the Monitor LXC. Storage, rules and queries live there.
+  agentMode: true
 
   ## Annotations for Prometheus
   ##
@@ -4259,7 +4264,8 @@ prometheus:
 
     ## If true, the Operator won't add the external label used to denote replica name
     ##
-    replicaExternalLabelNameClear: false
+    # Off so remote-written series carry no prometheus_replica label (dashboards don't expect it)
+    replicaExternalLabelNameClear: true
 
     ## Name of the external label used to denote Prometheus instance name
     ##
@@ -4267,7 +4273,8 @@ prometheus:
 
     ## If true, the Operator won't add the external label used to denote Prometheus instance name
     ##
-    prometheusExternalLabelNameClear: false
+    # Off so remote-written series carry no prometheus="monitoring/..." label
+    prometheusExternalLabelNameClear: true
 
     ## External URL at which Prometheus will be reachable.
     ##
@@ -4283,10 +4290,8 @@ prometheus:
     ## reflected in the running Pods. To change the secrets mounted into the Prometheus Pods, the object must be deleted and recreated
     ## with the new list of secrets.
     ##
-    secrets:
-      # Public blackbox probe targets (apps/monitoring/prometheus/blackbox-targets.secret.yaml,
-      # gitignored — apply by hand before syncing this app)
-      - blackbox-targets
+    # Blackbox probes moved to the Monitor LXC; their targets live there now.
+    secrets: []
 
     ## ConfigMaps is a list of ConfigMaps in the same namespace as the Prometheus object, which shall be mounted into the Prometheus Pods.
     ## The ConfigMaps are mounted into /etc/prometheus/configmaps/.
@@ -4513,7 +4518,9 @@ prometheus:
 
     ## The remote_write spec configuration for Prometheus.
     ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#remotewritespec
-    remoteWrite: []
+    remoteWrite:
+      # Prometheus on the Monitor LXC (kevin000001505/Monitor), --web.enable-remote-write-receiver
+      - url: http://192.168.1.184:9090/api/v1/write
     # - url: http://remote1/push
     ## additionalRemoteWrite is appended to remoteWrite
     additionalRemoteWrite: []
@@ -4566,11 +4573,9 @@ prometheus:
     ## port to 2379 and allow etcd scraping provided it is running on all Kubernetes master nodes
     ##
     additionalScrapeConfigs: []
-    ## NOTE: the homelab-vms and proxmox external scrape jobs were migrated out of
-    ## this file into standalone ScrapeConfig CRDs so values.yaml stays maintainable
-    ## as more VMs/nodes are added. They now live (GitOps-synced by the `monitoring`
-    ## ArgoCD app) at:
-    ##   apps/monitoring/prometheus/scrapeconfigs-proxmox.yaml
+    ## NOTE: every scrape job outside Kubernetes (Proxmox, guests, blackbox, AI, CrowdSec)
+    ## runs on the Monitor LXC since 2026-11-17, in
+    ##   prometheus/prometheus.yml in the Monitor repo (kevin000001505/Monitor)
     ##     - node-exporter-guests  (job=node-exporter-guests)  # guest VM node_exporters
     ##     - proxmox-node          (job=proxmox-node)          # Proxmox host node_exporter
     ##     - proxmox-ve            (job=proxmox-ve)            # pve-exporter cluster stats

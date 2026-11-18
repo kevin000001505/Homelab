@@ -7,8 +7,8 @@ positions:
   filename: /etc/promtail/positions.yaml
 
 clients:
-  # k3s Loki via loki-gateway-nodeport (apps/monitoring/loki/gateway-nodeport.yaml)
-  - url: http://192.168.1.15:30100/loki/api/v1/push
+  # Loki on the Monitor LXC (kevin000001505/Monitor)
+  - url: http://192.168.1.184:3100/loki/api/v1/push
 
 scrape_configs:
   - job_name: nginx

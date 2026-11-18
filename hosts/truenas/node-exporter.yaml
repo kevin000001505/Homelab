@@ -16,7 +16,7 @@
 #
 # Not installed yet (skipped 2026-11-12), so the Proxmox dashboard shows TrueNAS as
 # "not measured". After installing, add 192.168.1.203:9100 with hostname "TrueNAS" to
-# node-exporter-guests in apps/monitoring/prometheus/scrapeconfigs-proxmox.yaml.
+# the node-exporter-guests job in prometheus/prometheus.yml in the Monitor repo (kevin000001505/Monitor).
 services:
   node-exporter:
     image: quay.io/prometheus/node-exporter:v1.9.1
