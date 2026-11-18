@@ -119,7 +119,7 @@ Traefik ─▶ /metrics :8082 ──▶ (agent)                    ▲
 - **kube-prometheus-stack** runs only the Prometheus agent, kube-state-metrics, node-exporter and the operator. No Grafana, no Alertmanager, no rules: recording and alert rules are evaluated on the Monitor LXC.
 - **Promtail** has a dedicated scrape job for Traefik that parses its JSON access log and promotes `status_code` and `method` to labels — which is what makes "show me every 5xx by route in the last hour" a fast query instead of a full-text scan.
 - **Traefik** exports Prometheus metrics on a separate `metrics` entrypoint (`:8082`) with entrypoint and service labels enabled.
-- **Uptime Kuma** provides black-box checks as a deliberately independent signal — if the monitoring stack itself is down, it still reports.
+- **Uptime Kuma** also runs on the Monitor LXC (Monitor repo), outside the cluster, so its checks still report when k3s is down.
 
 ---
 
@@ -129,7 +129,7 @@ Storage class is chosen per workload rather than by default:
 
 | Pattern | Used for | Trade-off accepted |
 |---|---|---|
-| `hostPath` PV + `Retain` | Uptime Kuma, Speedtest, Dawarich, Trek | Node-pinned, but survives a reclaim and is trivially backed up from the host path. |
+| `hostPath` PV + `Retain` | Speedtest, Dawarich, Trek | Node-pinned, but survives a reclaim and is trivially backed up from the host path. |
 | `local-path` | Ghost + MySQL | Dynamic provisioning where node affinity is acceptable. |
 | NFS | Media in `arr-stacks` | Shared across nodes; the media library must outlive any node. |
 
@@ -143,7 +143,7 @@ Workloads on `ReadWriteOnce` volumes use `strategy: Recreate` rather than `Rolli
 - `livenessProbe` + `readinessProbe` on all application deployments.
 - `revisionHistoryLimit` trimmed to keep rollback history bounded.
 - `node-type` labels with `nodeSelector` pinning, so log/metric collectors stay on the general worker. Only `general` exists today; a `gpu` node for transcoding is planned.
-- Image tags pinned to explicit versions (`louislam/uptime-kuma:2.4.0`) — no `:latest` in the deployment path.
+- Image tags pinned to explicit versions (`actualbudget/actual-server:26.11.0`) — no `:latest` in the deployment path.
 
 ### Keeping pinned images current
 
@@ -155,7 +155,7 @@ Pinning versions only works if something bumps them. A weekly GitHub Actions job
 
 | Namespace | Services |
 |---|---|
-| `monitoring` | kube-prometheus-stack (agent mode), Promtail, Uptime Kuma, Speedtest Tracker (+MariaDB), Homepage, Tracearr |
+| `monitoring` | kube-prometheus-stack (agent mode), Promtail, Speedtest Tracker (+MariaDB), Homepage, Tracearr |
 | `utilities` | Ghost (blog), Dawarich (location history — app/db/redis/sidekiq/photon), Actual Budget (+ actual-ai, one instance per user), AirTrail, Open WebUI, Glance, BentoPDF, Trek |
 | `arr-stacks` | Subsyncarr |
 | `argocd` | ArgoCD |

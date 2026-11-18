@@ -20,13 +20,6 @@
 #   manifest: apps/arr-stack/radarr/workloads/deployment.yaml
 #   tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+-ls[0-9]+$'
 
-- name: uptime-kuma
-  image: louislam/uptime-kuma
-  manifest: apps/monitoring/uptime-kuma/deployment.yaml
-  image_path: .spec.template.spec.containers[0].image
-  field_type: combined
-  tag_pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
-
 - name: open-webui
   image: ghcr.io/open-webui/open-webui
   manifest: apps/utilities/open-webui/deployment.yaml
