@@ -34,7 +34,7 @@ spec:
       containers:
         - name: actual-ai
           # Keep in step with actual-server: its @actual-app/api must match the server version
-          image: sakowicz/actual-ai:3.3.1
+          image: sakowicz/actual-ai:3.3.3
           imagePullPolicy: IfNotPresent
           env:
             - name: ACTUAL_SERVER_URL
