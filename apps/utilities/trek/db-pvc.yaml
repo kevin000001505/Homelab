@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trek-db-data
+  namespace: utilities
+  labels:
+    app: trek-db
+    tier: database
+spec:
+  storageClassName: ""
+  volumeName: trek-db-pv
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

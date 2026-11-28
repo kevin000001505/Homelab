@@ -23,6 +23,14 @@ spec:
         app: trek
         tier: utilities
     spec:
+      # trek-pv is a node-local hostPath at /appdata/trek on k3s-worker, and a
+      # PV's nodeAffinity cannot be changed once it is bound. Without this the
+      # scheduler may move TREK to k3s-cp, where /appdata/trek is created empty:
+      # on Postgres that means TREK comes up against a database holding all the
+      # data with no uploads and no .encryption_key / .jwt_secret beside it.
+      # Remove it only together with a PV that pins the volume itself.
+      nodeSelector:
+        kubernetes.io/hostname: k3s-worker
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -33,7 +41,7 @@ spec:
             sizeLimit: 64Mi
       containers:
         - name: trek
-          image: mauriceboe/trek:5.1.4
+          image: mauriceboe/trek:5.2.1
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

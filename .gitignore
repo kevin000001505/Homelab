@@ -9,3 +9,4 @@ talosconfig
 secrets/
 apps/utilities/ghost/ghost-config.production.json
 apps/utilities/dawarich/db-secret.yaml
+apps/utilities/trek/db-secret.yaml

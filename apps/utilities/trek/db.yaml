@@ -1,0 +1,97 @@
+# PostgreSQL 18 for TREK (5.2.0+). TREK supports PostgreSQL 14 to 18 and the
+# TREK image ships the version 18 client tools (pg_dump/pg_restore/psql), so 18
+# is the matching major.
+#
+# A database stays on the major it was created with. Changing this image tag
+# later does NOT upgrade the data: the 18 image refuses a volume holding an
+# older cluster, and an older image cannot read a newer one. Moving major needs
+# pg_upgrade, or a TREK backup restored into a new empty database.
+#
+# NOTE the volume path: postgres:18 keeps its data under /var/lib/postgresql.
+# Images 14 to 17 use /var/lib/postgresql/data instead, and 18 refuses that path.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trek-db
+  namespace: utilities
+  labels:
+    app: trek-db
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trek-db
+      tier: database
+  strategy:
+    # Single writer on a node-local volume: stop the old pod before the new one.
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        homelab/app: trek
+        app: trek-db
+        tier: database
+    spec:
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: trek-db-data
+        - name: init
+          configMap:
+            name: trek-db-init
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi
+      containers:
+        - name: postgres
+          image: postgres:18
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: trek-db-secrets
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+            - name: dshm
+              mountPath: /dev/shm
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "trek"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "trek"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trek-db
+  namespace: utilities
+  labels:
+    app: trek-db
+    tier: database
+spec:
+  # No external exposure: only pods in the cluster reach the database.
+  selector:
+    app: trek-db
+  ports:
+    - port: 5432
+      targetPort: 5432

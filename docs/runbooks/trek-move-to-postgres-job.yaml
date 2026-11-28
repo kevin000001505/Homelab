@@ -1,0 +1,84 @@
+# One-shot job: copy TREK's SQLite install into the empty Postgres database.
+#
+# NOT under apps/utilities/trek/ on purpose — the utilities ApplicationSet
+# recurses that folder, so ArgoCD would own this Job, re-create it and re-run
+# it on every sync. Apply it by hand, read its log, then delete it:
+#
+#   kubectl apply -f docs/runbooks/trek-move-to-postgres-job.yaml
+#   kubectl -n utilities logs -f job/trek-move-to-postgres
+#   kubectl -n utilities delete job trek-move-to-postgres
+#
+# Preconditions (see trek-postgres-migration.md):
+#   * the image tag below matches the TREK version that last started on
+#     data/travel.db, so the file is at that version's migration level;
+#   * the trek Deployment is scaled to 0 — the SQLite file must not change
+#     while it is read;
+#   * TREK_DB_URL is present in the trek-secrets Secret;
+#   * the Postgres database is empty (no tables, no trek_plugin_* schemas).
+#
+# It never writes to travel.db, checks the copy against the source and rolls
+# the whole thing back if anything fails, leaving the database empty again.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trek-move-to-postgres
+  namespace: utilities
+  labels:
+    app: trek
+    tier: utilities
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: trek-move-to-postgres
+        tier: utilities
+    spec:
+      restartPolicy: Never
+      # trek-pv is an unpinned hostPath on k3s-worker. Without this the job can
+      # land on k3s-cp, create an empty /appdata/trek there and find no travel.db.
+      nodeSelector:
+        kubernetes.io/hostname: k3s-worker
+      securityContext:
+        # The `node` user in the TREK image. The normal entrypoint starts as
+        # root and drops to it; this job bypasses the entrypoint, so it must
+        # start as node itself. /appdata/trek is already owned by uid 1000
+        # because the entrypoint chowns /app/data on every start.
+        runAsUser: 1000
+        runAsGroup: 1000
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: trek-pvc
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
+      containers:
+        - name: move
+          # Must be the same version that migrated travel.db.
+          image: mauriceboe/trek:5.2.1
+          imagePullPolicy: IfNotPresent
+          workingDir: /app/server
+          # Add --drop-nul only if the job refuses the move over NUL characters
+          # (U+0000) and names the rows; it then drops them, as TREK would on
+          # its next write, and lists every value it changed.
+          command:
+            - node
+            - --require
+            - tsconfig-paths/register
+            - dist/move-to-postgres.js
+          envFrom:
+            # Supplies TREK_DB_URL and ENCRYPTION_KEY.
+            - secretRef:
+                name: trek-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+              subPath: data
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi

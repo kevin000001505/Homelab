@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: trek-db-pv
+spec:
+  volumeMode: Filesystem
+  hostPath:
+    # Deliberately NOT under /appdata/trek: the TREK entrypoint runs
+    # `chown -R node /app/data` on every start, which would hand the Postgres
+    # data directory to uid 1000 and stop the postgres image (uid 999) reading it.
+    path: /appdata/trek-db
+    type: DirectoryOrCreate
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  # hostPath is node-local, and trek's own data lives on k3s-worker. Without
+  # this the scheduler may place the db pod on k3s-cp, where it would initdb a
+  # brand-new empty database and TREK would come up with no data.
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - k3s-worker

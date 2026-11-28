@@ -1,0 +1,39 @@
+# Run once by the postgres image, on the database's first start, as the
+# superuser. It creates the role `trek`, which owns TREK's database and its
+# public schema and is NOT a superuser.
+#
+# TREK requires a non-superuser role: a backup it restores is a SQL script run
+# by this role, so a superuser would let a crafted archive run commands inside
+# the database container. TREK refuses restores and plugin databases
+# (`db:own`) while it is connected as a privileged role.
+#
+# The file is mounted from a ConfigMap at mode 0644, so it is not executable
+# and the postgres entrypoint *sources* it into its own shell rather than
+# running it. All the work therefore happens in a subshell, so `set -eu` and
+# `exit` stay inside it; a failure there still fails the first start.
+#
+# The password reaches psql as a psql variable, never spliced into the SQL.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trek-db-init
+  namespace: utilities
+  labels:
+    app: trek-db
+    tier: database
+data:
+  10-trek-role.sh: |
+    #!/bin/sh
+    (
+      set -eu
+      if [ -z "${TREK_DB_PASSWORD:-}" ]; then
+        echo 'TREK_DB_PASSWORD (the password of the role trek) is not set.' >&2
+        exit 1
+      fi
+      psql -v ON_ERROR_STOP=1 --no-psqlrc --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+        --set=password="$TREK_DB_PASSWORD" --set=database="$POSTGRES_DB" <<'SQL'
+    CREATE ROLE trek LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD :'password';
+    ALTER DATABASE :"database" OWNER TO trek;
+    ALTER SCHEMA public OWNER TO trek;
+    SQL
+    )
