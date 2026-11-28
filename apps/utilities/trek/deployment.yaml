@@ -44,7 +44,11 @@ spec:
           image: mauriceboe/trek:5.2.1
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 80
+            # TREK listens on 3000 (PORT in the image). This field is only
+            # documentation — the Service reaches the pod through its numeric
+            # targetPort: 3000 either way — but it said 80, which reads as if
+            # the container served HTTP there.
+            - containerPort: 3000
               protocol: TCP
           envFrom:
             - secretRef:
