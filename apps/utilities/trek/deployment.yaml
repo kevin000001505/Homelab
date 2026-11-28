@@ -7,7 +7,7 @@ metadata:
     app: trek
     tier: utilities
 spec:
-  replicas: 1
+  replicas: 0
   strategy:
     # Single replica on a node-local volume, and k3s-worker has no CPU room for
     # a surge pod: stop the old pod before starting the new one.
