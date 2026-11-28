@@ -58,11 +58,36 @@ spec:
               subPath: uploads
             - name: tmp
               mountPath: /tmp
+          # TREK needs roughly 45s to boot (NestJS route mapping), and longer on
+          # a release with pending migrations, which takes a pg_dump copy of the
+          # database first. The startup probe owns that whole window: liveness
+          # and readiness do not run until it passes, so a slow boot is never
+          # mistaken for a hang and the pod is never Ready before it listens.
+          # 5s x 60 = up to 5 minutes.
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 60
+          # Without this the pod is Ready as soon as the container starts, so
+          # Traefik forwards to a port nothing is listening on yet and callers
+          # get 502s. With it the Service has no endpoint until TREK answers:
+          # the Recreate gap then returns a clean 503 from Traefik instead, and
+          # `kubectl rollout status` only reports done once TREK really serves.
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # No initialDelaySeconds: the startup probe already covers the boot.
           livenessProbe:
             httpGet:
               path: /api/health
               port: 3000
-            initialDelaySeconds: 15
             periodSeconds: 30
             timeoutSeconds: 10
             failureThreshold: 3
